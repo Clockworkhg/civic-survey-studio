@@ -66,6 +66,28 @@ def _lookup_list_index(options: List[str], target: str, fallback: int = 0) -> in
     return fallback
 
 
+def _reset_config_widgets() -> None:
+    """Clear all config-related widget caches so widgets re-initialise from
+    ``st.session_state["generic_config"]`` on next render.
+
+    Called after blueprint adoption to ensure all tabs pick up new values.
+    """
+    # All known widget keys that read from generic_config
+    _keys = [
+        # Tab 4 (分析配置)
+        "cfg_title", "cfg_target", "cfg_groups", "cfg_expl",
+        "cfg_html", "cfg_docx",
+        # Tab 10 (AI 自动分析) – report params
+        "ai_report_title", "ai_research_subject",
+        "ai_report_structure", "ai_report_style",
+        "ai_report_length", "ai_html_theme",
+        # Tab 10 – LLM params (not config-related but safe to reset)
+        "ai_temperature", "ai_max_tokens",
+    ]
+    for k in _keys:
+        st.session_state.pop(k, None)
+
+
 def _build_chart_summaries(dashboard_charts: List) -> List[Dict[str, Any]]:
     """将 generate_dashboard_charts 的输出转为文字摘要列表。"""
     summaries = []
@@ -342,11 +364,10 @@ def render_tab_ai_analysis(
                         if st.button("✅ 采用推荐方案", type="primary", key="gen_adopt_blueprint"):
                             msgs = gen_ctx.apply_blueprint(gen_blueprint)
                             st.session_state["generic_config"] = gen_ctx.user_analysis_config
-                            for wk in ["cfg_title", "cfg_target", "cfg_groups", "cfg_explanatory",
-                                       "ai_report_title", "ai_research_subject",
-                                       "ai_report_structure", "ai_report_style",
-                                       "ai_report_length", "ai_html_theme"]:
-                                st.session_state.pop(wk, None)
+                            # 清除所有分析相关 widget 缓存，迫使各 Tab 从 config 重新读取
+                            _reset_config_widgets()
+                            # 标记：各 Tab 在渲染时检测此标记，自行处理同步
+                            st.session_state["_config_just_updated"] = True
                             for m in msgs:
                                 st.success(m)
                             st.rerun()

@@ -1,0 +1,55 @@
+# 字段定义文件
+# 每个字段的 name、description、detail_level
+# detail_level: 极简 → 简要 → 详细
+
+fields:
+  - category: "基本信息"
+    fields:
+      - name: "policy_name"
+        description: "政策名称"
+        detail_level: "极简"
+      - name: "issuing_body"
+        description: "发布机构"
+        detail_level: "极简"
+      - name: "release_date"
+        description: "发布时间"
+        detail_level: "极简"
+      - name: "status"
+        description: "现行状态（现行有效/已废止/已修订）"
+        detail_level: "极简"
+
+  - category: "政策内容"
+    fields:
+      - name: "policy_content"
+        description: "政策核心内容（200字概要）"
+        detail_level: "简要"
+      - name: "key_measures"
+        description: "关键措施列表"
+        detail_level: "详细"
+      - name: "implementation"
+        description: "实施情况与进展"
+        detail_level: "详细"
+      - name: "challenges"
+        description: "面临的主要挑战"
+        detail_level: "简要"
+
+  - category: "影响评估"
+    fields:
+      - name: "impact"
+        description: "对政务服务满意度的影响"
+        detail_level: "详细"
+      - name: "evaluation"
+        description: "第三方评估或学术研究发现"
+        detail_level: "详细"
+      - name: "public_response"
+        description: "公众反馈与满意度数据"
+        detail_level: "简要"
+
+  - category: "来源信息"
+    fields:
+      - name: "source_url"
+        description: "信息来源URL"
+        detail_level: "极简"
+      - name: "source_type"
+        description: "来源类型（政府文件/新闻报道/学术论文/智库报告）"
+        detail_level: "极简"

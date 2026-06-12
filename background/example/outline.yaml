@@ -1,0 +1,32 @@
+# 研究背景调研：政务服务满意度改革政策
+# 由 /research 命令生成，也可手动编写
+topic: 中国政务服务满意度改革政策与进展
+items:
+  - name: "国务院'放管服'改革"
+    category: "顶层政策"
+    description: "简政放权、放管结合、优化服务改革，是政务服务中心建设的顶层政策框架"
+
+  - name: "'互联网+政务服务'技术体系建设指南"
+    category: "技术标准"
+    description: "国务院办公厅发布，指导全国一体化在线政务服务平台建设"
+
+  - name: "'好差评'制度"
+    category: "评价机制"
+    description: "2019年国务院办公厅发文建立政务服务'好差评'制度，实现服务绩效由群众评判"
+
+  - name: "'一网通办'改革"
+    category: "地方实践"
+    description: "上海率先推行，后推广至全国，实现政务服务事项网上可办率超过90%"
+
+  - name: "'最多跑一次'改革"
+    category: "地方实践"
+    description: "浙江省首创，以群众视角定义'一件事'，推动跨部门流程再造"
+
+  - name: "政务服务标准化试点"
+    category: "标准化"
+    description: "国家标准委推动的政务服务标准化试点工作，各地探索统一服务规范"
+
+execution:
+  batch_size: 3
+  items_per_agent: 2
+  output_dir: ./results

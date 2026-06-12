@@ -1,0 +1,60 @@
+# Virtual environment
+.venv/
+.venv-test/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment / secrets
+.env
+*.secret
+config/user_settings.json
+
+# Output files
+outputs/
+*.html.out
+*.docx.out
+
+# Cache
+cache/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code session data
+.claude/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# ── v0.1.0 仓库整理新增 ──
+# 本地数据文件（可能含真实问卷数据）
+local_data/
+# 崩溃恢复临时文件
+recovery/
+# 历史脚本归档
+archive/
+# 根目录测试产物
+test_output*
+# 测试结果目录（运行时产物）
+test_results/

@@ -1,0 +1,305 @@
+# LLM 厂商配置文件
+# 通用问卷 / 表格数据分析平台 — AI 自动报告模块
+#
+# 协议说明:
+#   openai_compatible        — 标准 OpenAI Chat Completions API
+#   custom_openai_compatible — 用户自定义 OpenAI Compatible API
+#   gemini_native            — Google Gemini 原生 API
+#   anthropic_native         — Anthropic Messages API (预留)
+#
+# 鉴权说明:
+#   bearer          — Authorization: Bearer <key>
+#   api_key_header  — 自定义 header 名 + API key
+#   query_key       — URL 查询参数
+
+providers:
+  # ================================================================
+  # OpenAI
+  # ================================================================
+  openai:
+    display_name: "OpenAI"
+    protocol: "openai_compatible"
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    allow_custom_model: true
+    default_model: "gpt-4o"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: true
+      method: "GET"
+      path: "/models"
+      auth_type: "bearer"
+      response_format: "openai_models"
+      note: "自动获取可用模型列表"
+
+  # ================================================================
+  # DeepSeek
+  # ================================================================
+  deepseek:
+    display_name: "DeepSeek"
+    protocol: "openai_compatible"
+    base_url: "https://api.deepseek.com/v1"
+    api_key_env: "DEEPSEEK_API_KEY"
+    allow_custom_model: true
+    default_model: "deepseek-chat"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: true
+      method: "GET"
+      path: "/models"
+      auth_type: "bearer"
+      response_format: "openai_models"
+      note: "DeepSeek 提供 /models 接口。默认模型: deepseek-chat / deepseek-reasoner"
+
+  # ================================================================
+  # 阿里云百炼 / 通义千问
+  # ================================================================
+  qwen:
+    display_name: "阿里云百炼 / 通义千问"
+    protocol: "openai_compatible"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    api_key_env: "DASHSCOPE_API_KEY"
+    allow_custom_model: true
+    default_model: "qwen-plus"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: false
+      note: "阿里云百炼模型列表请以官方控制台为准。常用: qwen-turbo / qwen-plus / qwen-max / qwen-long"
+
+  # ================================================================
+  # Moonshot / Kimi
+  # ================================================================
+  moonshot:
+    display_name: "Moonshot / Kimi"
+    protocol: "openai_compatible"
+    base_url: "https://api.moonshot.cn/v1"
+    api_key_env: "MOONSHOT_API_KEY"
+    allow_custom_model: true
+    default_model: "moonshot-v1-8k"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: false
+      note: "Moonshot 不提供公开模型列表接口。常用: moonshot-v1-8k / moonshot-v1-32k / moonshot-v1-128k"
+
+  # ================================================================
+  # 智谱 GLM
+  # ================================================================
+  zhipu:
+    display_name: "智谱 GLM"
+    protocol: "openai_compatible"
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key_env: "ZHIPU_API_KEY"
+    allow_custom_model: true
+    default_model: "glm-4-flash"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: false
+      note: "智谱模型列表请以官方控制台为准。常用: glm-4-flash / glm-4 / glm-4-plus"
+
+  # ================================================================
+  # 火山方舟 / 豆包
+  # ================================================================
+  bytedance:
+    display_name: "火山方舟 / 豆包"
+    protocol: "openai_compatible"
+    base_url: "https://ark.cn-beijing.volces.com/api/v3"
+    api_key_env: "ARK_API_KEY"
+    allow_custom_model: true
+    default_model: "doubao-pro-32k"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: false
+      note: "火山方舟需要先在控制台创建推理接入点(Endpoint ID)作为模型名。常用: doubao-pro-32k / doubao-lite-32k"
+
+  # ================================================================
+  # 腾讯混元
+  # ================================================================
+  hunyuan:
+    display_name: "腾讯混元"
+    protocol: "openai_compatible"
+    base_url: "https://api.hunyuan.cloud.tencent.com/v1"
+    api_key_env: "HUNYUAN_API_KEY"
+    allow_custom_model: true
+    default_model: "hunyuan-lite"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: false
+      note: "腾讯混元模型列表请以官方控制台为准。常用: hunyuan-lite / hunyuan-standard / hunyuan-pro"
+
+  # ================================================================
+  # OpenRouter
+  # ================================================================
+  openrouter:
+    display_name: "OpenRouter"
+    protocol: "openai_compatible"
+    base_url: "https://openrouter.ai/api/v1"
+    api_key_env: "OPENROUTER_API_KEY"
+    allow_custom_model: true
+    default_model: "openai/gpt-4o"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: true
+      method: "GET"
+      path: "/models"
+      auth_type: "bearer"
+      response_format: "openrouter_models"
+      note: "OpenRouter 提供公开模型列表接口"
+
+  # ================================================================
+  # Groq
+  # ================================================================
+  groq:
+    display_name: "Groq"
+    protocol: "openai_compatible"
+    base_url: "https://api.groq.com/openai/v1"
+    api_key_env: "GROQ_API_KEY"
+    allow_custom_model: true
+    default_model: "llama-3.1-8b-instant"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: true
+      method: "GET"
+      path: "/models"
+      auth_type: "bearer"
+      response_format: "openai_models"
+      note: "自动获取可用模型列表"
+
+  # ================================================================
+  # Google Gemini
+  # ================================================================
+  gemini:
+    display_name: "Google Gemini"
+    protocol: "gemini_native"
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    api_key_env: "GEMINI_API_KEY"
+    allow_custom_model: true
+    default_model: "gemini-2.0-flash"
+    auth:
+      type: "query_key"
+      header_name: ""
+      prefix: ""
+      param_name: "key"
+    model_list:
+      enabled: true
+      method: "GET"
+      path: "/models"
+      auth_type: "query_key"
+      response_format: "gemini_models"
+      query_params:
+        pageSize: "100"
+      note: "自动获取 Gemini 可用模型列表（仅保留支持 generateContent 的模型）。常用: gemini-2.0-flash / gemini-2.5-pro"
+
+  # ================================================================
+  # MiniMax
+  # ================================================================
+  minimax:
+    display_name: "MiniMax"
+    protocol: "openai_compatible"
+    base_url: "https://api.minimax.chat/v1"
+    api_key_env: "MINIMAX_API_KEY"
+    allow_custom_model: true
+    default_model: "abab6.5s-chat"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: true
+      method: "GET"
+      path: "/models"
+      auth_type: "bearer"
+      response_format: "openai_models"
+      note: "MiniMax 提供 /models 接口。常用: abab6.5s-chat / abab7-chat"
+
+  # ================================================================
+  # SiliconFlow 硅基流动
+  # ================================================================
+  siliconflow:
+    display_name: "SiliconFlow 硅基流动"
+    protocol: "openai_compatible"
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key_env: "SILICONFLOW_API_KEY"
+    allow_custom_model: true
+    default_model: "Qwen/Qwen2.5-7B-Instruct"
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: true
+      method: "GET"
+      path: "/models"
+      auth_type: "bearer"
+      response_format: "siliconflow_models"
+      note: "自动获取 SiliconFlow 可用模型列表"
+
+  # ================================================================
+  # 小米 MiMo
+  # ================================================================
+  xiaomi_mimo:
+    display_name: "小米 MiMo"
+    protocol: "openai_compatible"
+    base_url: "https://api.xiaomimimo.com/v1"
+    api_key_env: "MIMO_API_KEY"
+    allow_custom_model: true
+    default_model: "mimo-v2.5-pro"
+    auth:
+      type: "api_key_header"
+      header_name: "api-key"
+      prefix: ""
+    alternative:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: false
+      note: "小米 MiMo 支持 OpenAI API 兼容调用，但模型列表接口请以官方控制台为准；当前版本默认手动输入模型名。"
+
+  # ================================================================
+  # 自定义 OpenAI Compatible API
+  # ================================================================
+  custom_openai:
+    display_name: "自定义 OpenAI Compatible API"
+    protocol: "custom_openai_compatible"
+    base_url: ""
+    api_key_env: ""
+    allow_custom_model: true
+    default_model: ""
+    auth:
+      type: "bearer"
+      header_name: "Authorization"
+      prefix: "Bearer"
+    model_list:
+      enabled: true
+      method: "GET"
+      path: "/models"
+      auth_type: "bearer"
+      response_format: "generic_models"
+      note: "用户可自定义 base_url、API Key、模型名、模型列表接口路径、响应格式和鉴权方式。"

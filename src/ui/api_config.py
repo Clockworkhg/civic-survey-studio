@@ -290,7 +290,7 @@ def render_api_config_section(location: str = "inline") -> None:
         except Exception:
             pass
 
-        col_fetch1, col_fetch2 = st.columns([1, 3])
+        col_fetch1, col_fetch2 = st.columns([1, 2] if location == "sidebar" else [1, 3])
         with col_fetch1:
             fetch_btn = st.button(
                 "🌐 联网获取模型列表",
@@ -435,9 +435,9 @@ def render_api_config_section(location: str = "inline") -> None:
         st.markdown("##### 4. 测试连接")
     else:
         st.markdown("#### 4. 测试连接")
-    tc1, tc2 = st.columns([1, 3])
+    tc1, tc2 = st.columns([1, 2] if location == "sidebar" else [1, 3])
     with tc1:
-        test_btn = st.button("🔌 测试连接", key="ai_test_connection")
+        test_btn = st.button("🔌 测试连接", key="ai_test_connection", use_container_width=True)
     with tc2:
         test_placeholder = st.empty()
 

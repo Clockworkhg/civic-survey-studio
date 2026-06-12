@@ -285,6 +285,7 @@ with gt10:
         generic_var_dict_map,
         _file_name,
         _selected_sheet,
+        gen_ctx,
     )
 # ---- 页脚 ----
 st.markdown("---")

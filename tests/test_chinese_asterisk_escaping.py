@@ -13,11 +13,12 @@ class TestChineseAsteriskEscaping:
     """Test that CJK-wrapped asterisks are escaped but English ones are not."""
 
     def test_double_asterisks_with_chinese(self):
-        """**标准差** should be escaped because it contains CJK."""
+        """**标准差** should NOT be escaped — AI reports use ** for bold."""
         text = "计算了**标准差**指标。"
         result = escape_chinese_asterisks(text)
-        assert "\\*\\*标准差\\*\\*" in result
-        assert "**标准差**" not in result
+        # **...** passes through unchanged even with CJK content
+        assert "**标准差**" in result
+        assert "\\*\\*" not in result
 
     def test_single_asterisk_with_chinese(self):
         """*均值* should be escaped because it contains CJK."""
@@ -41,11 +42,12 @@ class TestChineseAsteriskEscaping:
         assert "\\*p值\\*" in result
 
     def test_mixed_chinese_english_asterisks(self):
-        """Chinese with English mixed inside ** should still be escaped."""
+        """Chinese with English mixed inside ** should pass through (for bold)."""
         text = "计算了**标准差(std)**和**均值(mean)**。"
         result = escape_chinese_asterisks(text)
-        assert "\\*\\*标准差(std)\\*\\*" in result
-        assert "\\*\\*均值(mean)\\*\\*" in result
+        # **...** passes through unchanged even with mixed CJK/English
+        assert "**标准差(std)**" in result
+        assert "**均值(mean)**" in result
 
     def test_no_asterisks_unchanged(self):
         """Text without asterisks should be unchanged."""

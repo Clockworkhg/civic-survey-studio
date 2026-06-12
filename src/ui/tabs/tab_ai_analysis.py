@@ -8,6 +8,7 @@ changed.
 
 from __future__ import annotations
 
+import json
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List
@@ -128,6 +129,7 @@ def render_tab_ai_analysis(
     generic_var_dict_map: Dict[str, Any],
     generic_file_name: str,
     selected_sheet: str,
+    gen_ctx: Any = None,
 ) -> None:
     """Render Tab 10: AI Intelligent Analysis.
 
@@ -181,8 +183,177 @@ def render_tab_ai_analysis(
             f"密钥：{mask_api_key(resolved_api_key)}"
         )
 
+        # ============================================
+        # Step 0: AI 数据理解 / 分析规划（蓝图）
+        # ============================================
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.markdown("#### 2. 🧠 AI 分析方案规划")
+        st.caption("让 AI 理解数据结构，推荐最合适的分析方案和变量配置。")
+
+        user_goal = st.text_input(
+            "分析目标（可选）",
+            placeholder="例如：分析影响满意度的因素 / 生成学术论文式报告",
+            key="gen_ai_goal",
+        )
+
+        tu_col1, tu_col2 = st.columns([1, 3])
+        with tu_col1:
+            gen_tu_btn = st.button("📦 生成数据理解 Payload", key="gen_tu_btn")
+        with tu_col2:
+            tu_placeholder = st.empty()
+
+        if gen_tu_btn:
+            with st.spinner("正在构建数据理解 payload…"):
+                try:
+                    from src.table_understanding_packager import (
+                        build_table_understanding_payload,
+                        to_json_payload as tu_to_json,
+                    )
+                    st.session_state["gen_tu_payload"] = build_table_understanding_payload(
+                        df=raw_df,
+                        schema_df=schema_df,
+                        quality=quality,
+                        variable_dict_map=generic_var_dict_map,
+                        user_goal=user_goal,
+                        preset_profile=None,
+                        selected_sheet=selected_sheet or "",
+                        file_type="csv" if generic_file_name.endswith(".csv") else "xlsx",
+                        dataset_name=generic_file_name,
+                    )
+                    tu_placeholder.success(
+                        f"✅ 数据理解 Payload 生成完成 "
+                        f"（{len(tu_to_json(st.session_state['gen_tu_payload']).encode('utf-8')) / 1024:.1f} KB）"
+                    )
+                except Exception as e:
+                    tu_placeholder.error(f"❌ 生成失败：{e}")
+
+        gen_tu_payload = st.session_state.get("gen_tu_payload")
+        if gen_tu_payload and gen_ctx is not None:
+            with st.expander("📋 数据理解 Payload 摘要", expanded=False):
+                st.json(gen_ctx.to_dict())
+
+        if gen_tu_payload:
+            st.markdown("---")
+            st.markdown("##### AI 分析方案推荐")
+
+            if not resolved_api_key or not selected_model:
+                st.info("💡 请先在左侧边栏「🤖 AI API 设置」中配置 API Key 和模型，然后生成分析方案。")
+            elif not provider_config:
+                st.warning("⚠️ 未找到厂商配置，请先在左侧边栏中选择厂商。")
+            else:
+                if st.button("🧠 生成 AI 分析方案", key="gen_blueprint_btn"):
+                    with st.spinner("AI 正在分析数据结构并推荐方案…"):
+                        from src.ai_table_planner import generate_analysis_blueprint
+                        bp_result = generate_analysis_blueprint(
+                            table_understanding_payload=st.session_state["gen_tu_payload"],
+                            provider_config=provider_config,
+                            api_key=resolved_api_key,
+                            model=selected_model,
+                            provider_key=provider_key,
+                        )
+                    if bp_result.get("success"):
+                        st.session_state["gen_blueprint"] = bp_result["blueprint"]
+                        st.success("✅ AI 分析方案生成完成！")
+                    else:
+                        st.error(f"❌ 生成失败：{bp_result.get('error', '未知错误')}")
+
+            # 展示 AI 推荐方案
+            gen_blueprint = st.session_state.get("gen_blueprint")
+            if gen_blueprint:
+                bp = gen_blueprint
+                st.markdown("---")
+                st.markdown("##### 📊 AI 推荐分析方案")
+
+                with st.expander("📖 数据集理解", expanded=True):
+                    ds = bp.get("dataset_understanding", {})
+                    st.markdown(f"**类型**: {ds.get('dataset_type', '')}")
+                    st.markdown(f"**研究对象**: {ds.get('possible_research_subject', '')}")
+                    st.markdown(f"**主题**: {ds.get('main_analysis_theme', '')}")
+                    st.markdown(ds.get("summary", ""))
+
+                titles = bp.get("recommended_report_titles", [])
+                if titles:
+                    with st.expander(f"📝 推荐报告标题（{len(titles)} 个）", expanded=False):
+                        for t in titles:
+                            st.caption(f"· {t}")
+
+                col_bp1, col_bp2, col_bp3 = st.columns(3)
+                with col_bp1:
+                    with st.expander("🎯 核心变量候选", expanded=True):
+                        for c in bp.get("target_variable_candidates", []):
+                            icon = {"high": "⭐", "medium": "●", "low": "○"}.get(c.get("priority", ""), "")
+                            st.caption(f"{icon} **{c.get('display_name', '')}** (`{c.get('variable', '')}`)")
+                            st.caption(f"  _{c.get('reason', '')}_")
+                with col_bp2:
+                    with st.expander("🔀 分组变量候选", expanded=True):
+                        for c in bp.get("group_variable_candidates", []):
+                            icon = {"high": "⭐", "medium": "●", "low": "○"}.get(c.get("priority", ""), "")
+                            st.caption(f"{icon} **{c.get('display_name', '')}** (`{c.get('variable', '')}`)")
+                with col_bp3:
+                    with st.expander("📈 解释变量候选", expanded=True):
+                        for c in bp.get("explanatory_variable_candidates", []):
+                            icon = {"high": "⭐", "medium": "●", "low": "○"}.get(c.get("priority", ""), "")
+                            st.caption(f"{icon} **{c.get('display_name', '')}** (`{c.get('variable', '')}`)")
+
+                derived = bp.get("derived_variable_suggestions", [])
+                if derived:
+                    with st.expander(f"🔧 推荐派生指标（{len(derived)} 个）", expanded=False):
+                        for d in derived:
+                            st.caption(f"· **{d.get('new_variable_name', '')}** = {d.get('method', '')}({', '.join(d.get('source_variables', []))})")
+                            st.caption(f"  _{d.get('reason', '')}_")
+
+                recipes = bp.get("analysis_recipes", [])
+                if recipes:
+                    with st.expander(f"🔬 推荐分析方法（{len(recipes)} 项）", expanded=False):
+                        for r in recipes:
+                            st.caption(f"· **{r.get('recipe_name', '')}** — {r.get('analysis_type', '')} — {', '.join(r.get('variables', []))}")
+
+                charts = bp.get("chart_plan", [])
+                if charts:
+                    with st.expander(f"📊 推荐图表（{len(charts)} 项）", expanded=False):
+                        for c in charts:
+                            st.caption(f"· **{c.get('chart_name', '')}** ({c.get('chart_type', '')}) — {', '.join(c.get('variables', []))}")
+
+                struct_rec = bp.get("report_structure_recommendation", {})
+                if struct_rec:
+                    st.info(f"📄 推荐报告结构: **{struct_rec.get('recommended_structure', '')}** — {struct_rec.get('reason', '')}")
+
+                bp_warnings = bp.get("warnings", [])
+                if bp_warnings:
+                    with st.expander(f"⚠️ 风险提示（{len(bp_warnings)} 条）", expanded=False):
+                        for w in bp_warnings:
+                            st.caption(f"· {w}")
+
+                # 一键采用
+                if gen_ctx is not None:
+                    st.markdown("---")
+                    bp_c1, bp_c2 = st.columns([1, 3])
+                    with bp_c1:
+                        if st.button("✅ 采用推荐方案", type="primary", key="gen_adopt_blueprint"):
+                            msgs = gen_ctx.apply_blueprint(gen_blueprint)
+                            st.session_state["generic_config"] = gen_ctx.user_analysis_config
+                            for wk in ["cfg_title", "cfg_target", "cfg_groups", "cfg_explanatory",
+                                       "ai_report_title", "ai_research_subject",
+                                       "ai_report_structure", "ai_report_style"]:
+                                st.session_state.pop(wk, None)
+                            for m in msgs:
+                                st.success(m)
+                            st.rerun()
+                    with bp_c2:
+                        st.caption("采用后将自动填入报告标题、核心变量、分组变量和解释变量。不会覆盖已手动修改的内容。")
+
+                st.download_button(
+                    "📥 下载 analysis_blueprint.json",
+                    data=json.dumps(bp, ensure_ascii=False, indent=2, default=str),
+                    file_name=f"analysis_blueprint_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.json",
+                    mime="application/json",
+                    key="gen_dl_blueprint",
+                )
+
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+
         # ---- LLM 生成参数 ----
-        st.markdown("#### 4. LLM 生成参数")
+        st.markdown("#### 3. LLM 生成参数")
         cp1, cp2 = st.columns(2)
         with cp1:
             temperature = st.slider(

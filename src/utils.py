@@ -134,16 +134,8 @@ def escape_chinese_asterisks(text: str) -> str:
     def _has_cjk(s: str) -> bool:
         return bool(CJK.search(s))
 
-    # Escape **...** containing CJK → \*\*...\*\*
-    def _escape_double(m: re.Match) -> str:
-        inner = m.group(1)
-        if _has_cjk(inner):
-            return '\x5c*\x5c*' + inner + '\x5c*\x5c*'
-        return m.group(0)
-
-    text = re.sub(r'\*\*([^*]+)\*\*', _escape_double, text)
-
-    # Escape *...* containing CJK (single asterisks, more conservative)
+    # 注意：仅转义单星号 *...*（中文常用 * 作为强调标记而非 Markdown 斜体）。
+    # 双星号 **...** 在 AI 报告输出中几乎总是预期的 Markdown 加粗，不转义。
     def _escape_single(m: re.Match) -> str:
         inner = m.group(1)
         if _has_cjk(inner):

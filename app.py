@@ -522,15 +522,24 @@ with gt3:
             elif not gen_ctx.downstream_valid:
                 st.caption("配置已变更，分析结果需要刷新。")
 
-        # ── 分析结果展示 ──
+        # ── 分析结果展示（v0.1.0: 传入预计算结果，不再各自独立分析）──
         render_section("单变量分析", f"对 {target} 等变量进行描述统计")
-        render_tab_univariate_analysis(raw_df, schema_df, cn_map, analyzable_cols, variable_df_generic)
+        render_tab_univariate_analysis(
+            raw_df, schema_df, cn_map, analyzable_cols, variable_df_generic,
+            precomputed_results=gen_ctx.analysis_results if gen_ctx.analysis_results else None,
+        )
 
         render_section("双变量分析", "分类变量间的交叉分析和数值变量间的相关性分析")
-        render_tab_bivariate_analysis(raw_df, schema_df, config, type_map, cn_map, generic_var_dict_map)
+        render_tab_bivariate_analysis(
+            raw_df, schema_df, config, type_map, cn_map, generic_var_dict_map,
+            precomputed_results=gen_ctx.analysis_results if gen_ctx.analysis_results else None,
+        )
 
         render_section("多变量分析", "多元回归分析")
-        render_tab_multivariate_analysis(raw_df, config, type_map, cn_map)
+        render_tab_multivariate_analysis(
+            raw_df, config, type_map, cn_map,
+            precomputed_results=gen_ctx.analysis_results if gen_ctx.analysis_results else None,
+        )
 
 
 # ================================================================
@@ -553,7 +562,11 @@ with gt4:
             action_label="前往统计分析",
         )
     else:
-        render_tab_visualization(raw_df, schema_df, config, type_map, cn_map)
+        render_tab_visualization(
+            raw_df, schema_df, config, type_map, cn_map,
+            precomputed_charts=gen_ctx.dashboard_charts if gen_ctx.dashboard_charts else None,
+            downstream_valid=gen_ctx.downstream_valid,
+        )
 
 
 # ================================================================
@@ -574,6 +587,7 @@ with gt5:
         render_tab_template_report(raw_df, schema_df, config, generic_var_dict_map)
 
         # ── AI 报告（完整报告生成工作台）──
+        # v0.1.0: 传入统一管道预计算结果，避免重复分析
         render_section("AI 报告", "由大语言模型基于统计数据撰写分析报告")
         render_tab_ai_analysis(
             raw_df, schema_df, config, quality,
@@ -581,6 +595,9 @@ with gt5:
             _file_name,
             _selected_sheet,
             gen_ctx,
+            precomputed_payload=gen_ctx.analysis_payload,
+            precomputed_analysis_results=gen_ctx.analysis_results if gen_ctx.analysis_results else None,
+            downstream_valid=gen_ctx.downstream_valid,
         )
 
 

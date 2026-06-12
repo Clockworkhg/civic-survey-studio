@@ -22,6 +22,9 @@ class TestTabUnivariateAnalysis:
         param_names = list(sig.parameters.keys())
         for name in ["raw_df", "schema_df", "cn_map", "analyzable_cols"]:
             assert name in param_names, f"Missing parameter: {name}"
+        # v0.1.0 Phase 2 parameters
+        assert "precomputed_results" in param_names
+        assert "use_precomputed" in param_names
 
 
 class TestTabBivariateAnalysis:
@@ -38,6 +41,9 @@ class TestTabBivariateAnalysis:
         param_names = list(sig.parameters.keys())
         for name in ["raw_df", "schema_df", "config", "type_map", "cn_map", "var_dict"]:
             assert name in param_names, f"Missing parameter: {name}"
+        # v0.1.0 Phase 2 parameters
+        assert "precomputed_results" in param_names
+        assert "use_precomputed" in param_names
 
     def test_render_cross_result_helper_exists(self):
         from src.ui.tabs.tab_bivariate_analysis import _render_cross_result
@@ -58,6 +64,9 @@ class TestTabMultivariateAnalysis:
         param_names = list(sig.parameters.keys())
         for name in ["raw_df", "config", "type_map", "cn_map"]:
             assert name in param_names, f"Missing parameter: {name}"
+        # v0.1.0 Phase 2 parameters
+        assert "precomputed_results" in param_names
+        assert "use_precomputed" in param_names
 
 
 class TestTabVisualization:
@@ -74,3 +83,7 @@ class TestTabVisualization:
         param_names = list(sig.parameters.keys())
         for name in ["raw_df", "schema_df", "config", "type_map", "cn_map"]:
             assert name in param_names, f"Missing parameter: {name}"
+        # v0.1.0 Phase 2 parameters
+        assert "precomputed_charts" in param_names
+        assert "use_precomputed" in param_names
+        assert "downstream_valid" in param_names

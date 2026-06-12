@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import streamlit as st
@@ -168,6 +168,9 @@ def render_tab_ai_analysis(
     generic_file_name: str,
     selected_sheet: str,
     gen_ctx: Any = None,
+    precomputed_payload: Optional[Dict[str, Any]] = None,
+    precomputed_analysis_results: Optional[Dict[str, Any]] = None,
+    downstream_valid: bool = True,
 ) -> None:
     """Render Tab 10: AI Intelligent Analysis.
 
@@ -187,10 +190,27 @@ def render_tab_ai_analysis(
         Original upload filename (used for file-type detection).
     selected_sheet : str
         Selected sheet name (Excel) or empty string (CSV).
+    precomputed_payload : Optional[Dict[str, Any]]
+        v0.1.0: Precomputed analysis payload from ``ctx.analysis_payload``.
+        When provided, the "生成 Payload" section is replaced with a
+        confirmation that the payload is ready from the unified pipeline.
+    precomputed_analysis_results : Optional[Dict[str, Any]]
+        v0.1.0: Precomputed analysis results from ``ctx.analysis_results``.
+        Used to skip re-running ``run_full_analysis`` during AI report generation.
+    downstream_valid : bool
+        v0.1.0: Whether the precomputed payload is still valid for the current config.
+        When False, a warning is shown and report generation is gated.
     """
 
     st.markdown("### 🤖 AI 自动分析与报告生成")
     st.caption("由大语言模型基于统计数据自动撰写分析报告。API 配置请在左侧边栏「🤖 AI API 设置」中完成。")
+
+    # ── v0.1.0: 下游过期警告 ──
+    if precomputed_payload is not None and not downstream_valid:
+        st.warning(
+            "当前报告所依赖的分析结果已过期（配置已变更）。"
+            "请先在「统计分析」页面重新执行分析，然后再生成报告。"
+        )
 
     # ---- 隐私提示 ----
     st.warning(
@@ -926,106 +946,110 @@ def render_tab_ai_analysis(
         st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
         # ---- 生成 Analysis Payload ----
-        st.markdown("#### 8. 生成 Analysis Payload")
-        st.caption("将统计分析结果打包为结构化 JSON，供 AI 模型使用。不包含原始数据。")
+        # v0.1.0: 优先使用统一管道的预计算 payload
+        _active_payload: Optional[Dict[str, Any]] = None
+        _active_analysis: Optional[Dict[str, Any]] = None
 
-        target = config.get("target_variable", "")
+        if precomputed_payload is not None:
+            # ── 统一管道 payload 路径 ──
+            st.markdown("#### 8. Analysis Payload")
+            st.success("Analysis Payload 已由统一分析管道生成，无需重复构建。")
+            _active_payload = precomputed_payload
+            _active_analysis = precomputed_analysis_results or {}
+            # 同步到 session_state（兼容旧代码路径）
+            st.session_state["ai_analysis_payload"] = _active_payload
+            if _active_analysis:
+                st.session_state["ai_analysis_results"] = _active_analysis
+        else:
+            # ── 旧版手动 Payload 生成路径（兼容）──
+            st.markdown("#### 8. 生成 Analysis Payload")
+            st.caption("将统计分析结果打包为结构化 JSON，供 AI 模型使用。不包含原始数据。")
 
-        payload_col1, payload_col2 = st.columns([1, 3])
-        with payload_col1:
-            gen_payload_btn = st.button(
-                "📦 生成 Payload",
-                key="gen_payload_btn",
-                help="运行分析并打包为 JSON",
-            )
-        with payload_col2:
-            payload_placeholder = st.empty()
+            target = config.get("target_variable", "")
 
-        if gen_payload_btn:
-            with st.spinner("正在运行完整分析并生成 Payload…"):
-                try:
-                    # 运行分析
-                    _analysis = run_full_analysis(
-                        raw_df, schema_df, config, var_dict=generic_var_dict_map,
-                    )
+            payload_col1, payload_col2 = st.columns([1, 3])
+            with payload_col1:
+                gen_payload_btn = st.button(
+                    "📦 生成 Payload",
+                    key="gen_payload_btn",
+                    help="运行分析并打包为 JSON",
+                )
+            with payload_col2:
+                payload_placeholder = st.empty()
 
-                    # 生成图表摘要
-                    _dashboard = generate_dashboard_charts(raw_df, schema_df, config)
-                    _chart_summaries = _build_chart_summaries(_dashboard)
+            if gen_payload_btn:
+                with st.spinner("正在运行完整分析并生成 Payload…"):
+                    try:
+                        _analysis = run_full_analysis(
+                            raw_df, schema_df, config, var_dict=generic_var_dict_map,
+                        )
+                        _dashboard = generate_dashboard_charts(raw_df, schema_df, config)
+                        _chart_summaries = _build_chart_summaries(_dashboard)
+                        _file_type = "csv" if generic_file_name.endswith(".csv") else "xlsx"
+                        _payload = build_analysis_payload(
+                            df=raw_df,
+                            schema_df=schema_df,
+                            config=config,
+                            analysis_results=_analysis,
+                            quality=quality,
+                            chart_summaries=_chart_summaries,
+                            selected_sheet=selected_sheet or "",
+                            file_type=_file_type,
+                        )
+                        st.session_state["ai_analysis_payload"] = _payload
+                        st.session_state["ai_analysis_results"] = _analysis
 
-                    # 确定文件类型
-                    _file_type = "csv" if generic_file_name.endswith(".csv") else "xlsx"
+                        _json_str = to_json_payload(_payload)
+                        _payload_size = len(_json_str.encode("utf-8"))
+                        _warn_count = len(_payload.get("warnings", []))
+                        _all_results = _payload.get("analysis_results", [])
+                        _uv_count = sum(1 for r in _all_results if r.get("analysis_type") in ("categorical_frequency", "numeric_descriptive", "text_summary"))
+                        _bv_groups = sum(1 for r in _all_results if r.get("analysis_type") in ("categorical_categorical_chi_square", "categorical_numeric_group_compare"))
+                        _bv_corrs = sum(1 for r in _all_results if r.get("analysis_type") == "numeric_numeric_correlation")
+                        _has_mv = any(r.get("analysis_type") == "linear_regression" for r in _all_results)
+                        _plan_total = len(_payload.get("analysis_plan", []))
+                        _truncated = _payload.get("_truncated", False)
 
-                    # 构建 payload
-                    _payload = build_analysis_payload(
-                        df=raw_df,
-                        schema_df=schema_df,
-                        config=config,
-                        analysis_results=_analysis,
-                        quality=quality,
-                        chart_summaries=_chart_summaries,
-                        selected_sheet=selected_sheet or "",
-                        file_type=_file_type,
-                    )
+                        payload_placeholder.success(
+                            f"✅ Payload 生成完成 · "
+                            f"{_plan_total} 项分析计划 · "
+                            f"{_uv_count} 个单变量 · "
+                            f"{_bv_groups} 组比较 · "
+                            f"{_bv_corrs} 对相关 · "
+                            f"回归: {'有' if _has_mv else '无'} · "
+                            f"{_warn_count} 条警告 · "
+                            f"{_payload_size / 1024:.1f} KB"
+                            + (" · ⚠️ 已截断" if _truncated else "")
+                        )
+                    except Exception as e:
+                        payload_placeholder.error(f"❌ Payload 生成失败：{e}")
+                        with st.expander("🔍 错误详情"):
+                            st.code(traceback.format_exc())
 
-                    # 存储到 session_state
-                    st.session_state["ai_analysis_payload"] = _payload
-                    st.session_state["ai_analysis_results"] = _analysis
+            if "ai_analysis_payload" in st.session_state and st.session_state["ai_analysis_payload"]:
+                _active_payload = st.session_state["ai_analysis_payload"]
+                _active_analysis = st.session_state.get("ai_analysis_results", {})
 
-                    # 摘要信息（从新 analysis_results 列表统计）
-                    _json_str = to_json_payload(_payload)
-                    _payload_size = len(_json_str.encode("utf-8"))
-                    _warn_count = len(_payload.get("warnings", []))
-                    _all_results = _payload.get("analysis_results", [])
-                    _uv_count = sum(1 for r in _all_results if r.get("analysis_type") in ("categorical_frequency", "numeric_descriptive", "text_summary"))
-                    _bv_groups = sum(1 for r in _all_results if r.get("analysis_type") in ("categorical_categorical_chi_square", "categorical_numeric_group_compare"))
-                    _bv_corrs = sum(1 for r in _all_results if r.get("analysis_type") == "numeric_numeric_correlation")
-                    _has_mv = any(r.get("analysis_type") == "linear_regression" for r in _all_results)
-                    _plan_total = len(_payload.get("analysis_plan", []))
-                    _truncated = _payload.get("_truncated", False)
-
-                    payload_placeholder.success(
-                        f"✅ Payload 生成完成 · "
-                        f"{_plan_total} 项分析计划 · "
-                        f"{_uv_count} 个单变量 · "
-                        f"{_bv_groups} 组比较 · "
-                        f"{_bv_corrs} 对相关 · "
-                        f"回归: {'有' if _has_mv else '无'} · "
-                        f"{_warn_count} 条警告 · "
-                        f"{_payload_size / 1024:.1f} KB"
-                        + (" · ⚠️ 已截断" if _truncated else "")
-                    )
-
-                except Exception as e:
-                    payload_placeholder.error(f"❌ Payload 生成失败：{e}")
-                    with st.expander("🔍 错误详情"):
-                        st.code(traceback.format_exc())
-
-        # 如果已有 payload，显示预览和下载
-        if "ai_analysis_payload" in st.session_state and st.session_state["ai_analysis_payload"]:
-            _payload = st.session_state["ai_analysis_payload"]
-
+        # ── Payload 预览和下载（统一路径）──
+        if _active_payload is not None:
             with st.expander("📋 Payload 摘要", expanded=False):
-                _pw = _payload.get("warnings", [])
-                _all_results = _payload.get("analysis_results", [])
+                _pw = _active_payload.get("warnings", [])
+                _all_results = _active_payload.get("analysis_results", [])
                 _reg = next((r for r in _all_results if r.get("analysis_type") == "linear_regression"), None)
                 _reg_r2 = (_reg.get("result") or {}).get("r_squared", "N/A") if _reg else "N/A"
-                _plan = _payload.get("analysis_plan", [])
+                _plan = _active_payload.get("analysis_plan", [])
                 _plan_completed = sum(1 for p in _plan if p.get("status") == "completed")
                 _plan_skipped = sum(1 for p in _plan if p.get("status") == "skipped")
 
                 st.markdown(f"""
                 | 项目 | 值 |
                 |------|-----|
-                | 报告标题 | {_payload.get('project_meta', {}).get('report_title', '')} |
-                | 样本量 | {_payload.get('data_overview', {}).get('row_count', '')} |
-                | 变量数 | {_payload.get('data_overview', {}).get('column_count', '')} |
-                | 目标变量 | {_payload.get('user_analysis_config', {}).get('target_variable', '')} |
-                | 分组变量 | {', '.join(_payload.get('user_analysis_config', {}).get('group_variables', []))} |
-                | 解释变量 | {', '.join(_payload.get('user_analysis_config', {}).get('explanatory_variables', []))} |
-                | 排除的 ID 变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_id_variables', []))} |
-                | 排除的文本变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_text_variables', []))} |
-                | 排除的敏感变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_sensitive_variables', []))} |
+                | 报告标题 | {_active_payload.get('project_meta', {}).get('report_title', '')} |
+                | 样本量 | {_active_payload.get('data_overview', {}).get('row_count', '')} |
+                | 变量数 | {_active_payload.get('data_overview', {}).get('column_count', '')} |
+                | 目标变量 | {_active_payload.get('user_analysis_config', {}).get('target_variable', '')} |
+                | 分组变量 | {', '.join(_active_payload.get('user_analysis_config', {}).get('group_variables', []))} |
+                | 解释变量 | {', '.join(_active_payload.get('user_analysis_config', {}).get('explanatory_variables', []))} |
                 | 分析计划 | {len(_plan)} 项（{_plan_completed} 完成 / {_plan_skipped} 跳过） |
                 | 分析结果 | {len(_all_results)} 条 |
                 | R² | {_reg_r2} |
@@ -1038,13 +1062,12 @@ def render_tab_ai_analysis(
                         st.caption(f"· {w}")
 
             with st.expander("🔍 查看完整 JSON", expanded=False):
-                _json_str = to_json_payload(_payload)
+                _json_str = to_json_payload(_active_payload)
                 st.code(_json_str[:50000], language="json")
                 if len(_json_str) > 50000:
                     st.caption(f"… JSON 过大（{len(_json_str):,} 字符），仅显示前 50,000 字符。")
 
-            # 下载按钮
-            _json_full = to_json_payload(_payload)
+            _json_full = to_json_payload(_active_payload)
             safe_title = config.get("report_title", "payload").replace(" ", "_")
             st.download_button(
                 "📥 下载 analysis_payload.json",
@@ -1060,8 +1083,19 @@ def render_tab_ai_analysis(
         st.markdown("#### 9. 生成 AI 报告")
 
         target = config.get("target_variable", "")
-        has_payload = "ai_analysis_payload" in st.session_state
-        has_analysis = "ai_analysis_results" in st.session_state
+        # v0.1.0: 使用统一管道的预计算结果
+        has_payload = _active_payload is not None or "ai_analysis_payload" in st.session_state
+        has_analysis = _active_analysis is not None or "ai_analysis_results" in st.session_state
+
+        # ── v0.1.0: 预计算路径的下游过期门控 ──
+        if precomputed_payload is not None and not downstream_valid:
+            st.warning(
+                "当前报告所依赖的分析结果已过期。"
+                "请先在「统计分析」页面重新执行分析，然后再生成报告。"
+            )
+            # 不展示生成按钮
+            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+            return
 
         # ── 生成前检查 ──
         precheck_ok = True
@@ -1074,20 +1108,20 @@ def render_tab_ai_analysis(
             precheck_msgs.append("❌ 未选择模型（见上方「3. 模型选择」）。")
             precheck_ok = False
         if not has_payload and not has_analysis:
-            precheck_msgs.append("💡 建议先在「8. 生成 Analysis Payload」中生成分析结果。也可直接点击下方按钮（将自动运行分析）。")
+            precheck_msgs.append("💡 请先在「统计分析」页面执行分析以生成 Payload。也可直接点击下方按钮（将自动运行分析）。")
         if not target:
             precheck_msgs.append("💡 未指定核心结果变量（target_variable），将生成探索性分析报告。")
         if report_structure == "学术论文式报告":
             # 检查 payload 中是否有回归和显著性结果
-            if has_payload:
-                _pre_payload = st.session_state["ai_analysis_payload"]
+            _check_payload = _active_payload or st.session_state.get("ai_analysis_payload")
+            if _check_payload:
                 _pre_has_reg = any(
                     r.get("analysis_type") == "linear_regression"
-                    for r in _pre_payload.get("analysis_results", [])
+                    for r in _check_payload.get("analysis_results", [])
                 )
                 _pre_has_sig = any(
                     r.get("p_value") is not None
-                    for r in _pre_payload.get("analysis_results", [])
+                    for r in _check_payload.get("analysis_results", [])
                 )
                 if not _pre_has_reg or not _pre_has_sig:
                     precheck_msgs.append(
@@ -1123,7 +1157,10 @@ def render_tab_ai_analysis(
 
             if st.button("🤖 生成 AI 分析报告", type="primary", key="gen_ai_report_btn"):
                 with st.spinner("正在生成 AI 分析报告…"):
-                    if has_analysis:
+                    # v0.1.0: 优先使用预计算结果
+                    if precomputed_analysis_results is not None:
+                        analysis_results = precomputed_analysis_results
+                    elif has_analysis:
                         analysis_results = st.session_state["ai_analysis_results"]
                     else:
                         analysis_results = run_full_analysis(

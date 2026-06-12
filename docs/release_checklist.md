@@ -6,10 +6,10 @@
 
 ## 一、测试 ✅
 
-- [ ] `python -m pytest tests/ -v` 全部通过（当前：501 passed, 0 failed）
-- [ ] `python test_run4.py` 全部通过（当前：73/73）
-- [ ] `python -c "import py_compile; py_compile.compile('app.py', doraise=True)"` 编译成功
-- [ ] Streamlit AppTest 前端烟雾测试通过（`tests/test_streamlit_app_smoke.py`，当前：15 passed）
+- [x] `python -m pytest tests/ -v` 全部通过（当前：**650 passed, 0 failed**）
+- [x] `python test_run4.py` 全部通过（当前：73/73）
+- [x] `python -c "import py_compile; py_compile.compile('app.py', doraise=True)"` 编译成功
+- [x] Streamlit AppTest 前端烟雾测试通过（`tests/test_streamlit_app_smoke.py`，当前：15 passed）
 - [ ] 无新增测试失败
 - [ ] 无因路径变化导致的 import 错误
 - [ ] 示例数据加载正常（`tests/test_examples.py` 通过）

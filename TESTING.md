@@ -382,9 +382,9 @@ tests/test_data/
 
 ```bash
 # 单元测试 + AppTest 前端烟雾测试（v0.1.0）
-python -m pytest tests/ -v                        # 全部 pytest 测试（含 AppTest）
-python -m pytest tests/test_streamlit_app_smoke.py -v  # 仅 AppTest 前端烟雾测试
-python test_run4.py                               # 集成测试（CSV + 二分类变量，73 项检查）
+python -m pytest tests/ -v                        # 全部 pytest 测试（650 passed, 0 failed）
+python -m pytest tests/test_streamlit_app_smoke.py -v  # 仅 AppTest 前端烟雾测试（15 passed）
+python test_run4.py                               # 集成测试（CSV + 二分类变量，73/73）
 ```
 
 每个脚本最后会输出测试结果摘要。

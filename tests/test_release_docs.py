@@ -156,4 +156,4 @@ class TestReadmeV010:
 
     def test_readme_has_p35_status(self):
         content = _read("README.md")
-        assert "P3-5" in content, "README should have P3-5 status row"
+        assert "v0.1.0" in content, "README should reference v0.1.0 version"

@@ -40,16 +40,17 @@ examples/
 
 | 指标 | 状态 |
 |------|------|
-| pytest | 427 passed, 0 failed |
+| pytest | 650 passed, 0 failed |
+| test_streamlit_app_smoke.py | 15 passed |
 | test_run4.py | 73/73 通过 |
 | app.py 编译 | ✅ |
-| P0 统计正确性 | ✅ 完成（binary 变量识别、二元逻辑回归、OR 解释、中文星号转义） |
-| P1 架构集中化 | ✅ 完成（LLMConfig / ReportConfig / PromptSection / payload_inspector） |
-| P2 UI 拆分 | ✅ 完成（app.py 2,510→258 行，10 个 Tab 全部模块化） |
-| P3 工程交付 | ✅ 完成（依赖整理、README、CI、启动脚本、.gitignore） |
-| P3-3 质量打磨 | ✅ 完成（新手引导、示例数据入口、错误提示优化、隐私提醒、导出优化） |
-| P3-4 安全硬化 | ✅ 完成（API Key 脱敏、Secrets 扫描、隐私预检增强、安全文档、outputs 安全） |
-| P3-5 发布整理 | ✅ 完成（版本号、CHANGELOG、路线图、已知问题、发布检查脚本） |
+| 5 步工作流 | ✅ 完成（数据与变量 → 分析方案 → 统计分析 → 可视化仪表盘 → 报告工作台） |
+| 统一状态流 | ✅ 完成（AnalysisContext 作为唯一数据源，precomputed results 模式消除重复分析） |
+| 变量元数据统一 | ✅ 完成（中文变量名、取值说明贯穿图表/统计/payload/AI 报告全流程） |
+| AI Payload 隐私门控 | ✅ 完成（filter_payload_for_ai 从 9 个 payload 节中移除禁发变量） |
+| 报告渲染清洗 | ✅ 完成（统一 Markdown→HTML/DOCX 管线，无 `#`/`**`/`\/`/`\n` 残留） |
+| DOCX/HTML 质量验证 | ✅ 完成（ZIP/XML 结构验证、中文编码确认、表格/列表渲染） |
+| 安全检查 | ✅ 完成（API Key 脱敏、Secrets 扫描、隐私预检、outputs 安全） |
 
 ## 技术栈
 
@@ -69,7 +70,7 @@ examples/
 
 ```
 gov-satisfaction-ai-report/
-├── app.py                          # 应用编排入口（258 行，仅负责导入、初始化、Tab 调度）
+├── app.py                          # 应用编排入口（5 步工作流：数据→方案→分析→图表→报告）
 ├── requirements.txt                # Python 依赖清单
 ├── .env.example                    # 环境变量模板（API Key 参考）
 ├── run_app.bat                     # Windows 一键启动脚本
@@ -77,7 +78,8 @@ gov-satisfaction-ai-report/
 ├── start.bat                       # Windows 自动创建 venv + 安装依赖 + 启动
 │
 ├── config/
-│   └── llm_providers.yaml          # LLM 厂商配置文件
+│   ├── llm_providers.yaml          # LLM 厂商配置文件
+│   └── user_settings.example.json  # 用户设置模板（复制为 user_settings.json 使用）
 ├── cache/
 │   └── model_catalog.json          # 模型列表缓存
 │
@@ -92,18 +94,19 @@ gov-satisfaction-ai-report/
 │   │   ├── analysis_helpers.py     #   分析配置自动建议
 │   │   ├── options.py              #   报告选项重导出
 │   │   ├── report_generation.py    #   LLM/Report 配置构造 + 报告生成调用
-│   │   └── tabs/                   #   Tab 1–10 独立模块
-│   │       ├── tab_data_upload.py
-│   │       ├── tab_data_overview.py
-│   │       ├── tab_variable_config.py
-│   │       ├── tab_quick_report.py
-│   │       ├── tab_analysis_config.py
-│   │       ├── tab_univariate_analysis.py
-│   │       ├── tab_bivariate_analysis.py
-│   │       ├── tab_multivariate_analysis.py
-│   │       ├── tab_visualization.py
-│   │       ├── tab_template_report.py
-│   │       └── tab_ai_analysis.py
+│   │   └── tabs/                   #   各功能模块
+│   │       ├── tab_data_upload.py          #   数据上传
+│   │       ├── tab_data_overview.py        #   数据概览
+│   │       ├── tab_variable_config.py      #   变量识别
+│   │       ├── tab_analysis_config.py      #   分析方案配置
+│   │       ├── tab_univariate_analysis.py  #   单变量分析
+│   │       ├── tab_bivariate_analysis.py   #   双变量分析
+│   │       ├── tab_multivariate_analysis.py #  多变量分析
+│   │       ├── tab_visualization.py        #   可视化仪表盘
+│   │       ├── tab_ai_analysis.py          #   报告工作台（AI + 模板）
+│   │       ├── tab_template_report.py      #   模板报告
+│   │       ├── tab_quick_report.py         #   快速报告
+│   │       └── tab_legacy_report.py        #   旧版报告兼容
 │   │
 │   ├── analysis.py                 # 统计分析（描述统计、相关、回归、交叉分析）
 │   ├── generic_analysis.py         # 通用模式统计分析编排
@@ -111,7 +114,10 @@ gov-satisfaction-ai-report/
 │   ├── charts.py                   # 示例模式图表
 │   ├── data_loader.py              # 数据加载 + 质量报告
 │   ├── schema_infer.py             # 变量类型推断 + 隐私评估
-│   ├── report_generator.py         # HTML/DOCX 报告生成（模板化）
+│   ├── report_rendering.py         # 统一报告渲染管线（Markdown→HTML/DOCX）（v0.1.0 Phase 4 新增）
+│   ├── variable_metadata.py        # 统一变量元数据模块（中文名/取值说明/描述）（v0.1.0 Phase 3 新增）
+│   ├── analysis_context.py         # AnalysisContext 统一分析上下文（v0.1.0 Phase 1 新增）
+│   ├── analysis_packager.py        # 分析结果 → JSON Payload + AI-safe 隐私过滤
 │   ├── ai_report_generator.py      # AI 报告生成编排
 │   ├── llm_client.py               # 统一 LLM 调用客户端
 │   ├── llm_prompts.py              # AI 提示词模板
@@ -120,8 +126,6 @@ gov-satisfaction-ai-report/
 │   ├── model_registry.py           # 模型列表获取与缓存
 │   ├── report_options.py           # 报告结构/风格/长度/主题选项定义
 │   ├── report_context.py           # 报告上下文管理（文献综述、背景材料）
-│   ├── analysis_context.py         # AnalysisContext 统一分析上下文
-│   ├── analysis_packager.py        # 分析结果 → JSON Payload
 │   ├── analysis_recipe_runner.py   # AI 分析方案执行器
 │   ├── ai_table_planner.py         # AI 数据表理解与规划
 │   ├── payload_inspector.py        # Payload 结构检查
@@ -134,24 +138,25 @@ gov-satisfaction-ai-report/
 │   ├── user_settings.py            # 用户设置持久化
 │   └── utils.py                    # 工具函数
 │
-├── tests/                          # 测试（27+ 个文件，250+ 个测试）
+├── tests/                          # 测试（30+ 个文件，650 个测试）
+│   ├── test_phase2_unified_state.py      # Phase 2: 统一状态流
+│   ├── test_phase3_variable_metadata.py  # Phase 3: 变量元数据统一
+│   ├── test_phase35_privacy_filter.py     # Phase 3.5: AI Payload 隐私门控
+│   ├── test_phase4_report_rendering.py   # Phase 4: 报告渲染清洗
+│   ├── test_phase45_verification.py      # Phase 4.5: DOCX 验证 + AI-safe payload
 │   ├── test_binary_inference.py
 │   ├── test_logistic_regression.py
-│   ├── test_config_models.py
-│   ├── test_payload_inspector.py
-│   ├── test_report_options.py
-│   ├── test_prompt_section_*.py
-│   ├── test_llm_client_config.py
-│   ├── test_report_generation_smoke.py
-│   ├── test_dashboard_charts.py
-│   ├── test_chinese_asterisk_escaping.py
-│   ├── test_ui_*.py
-│   ├── test_tab_*.py
-│   └── test_app_imports.py
+│   ├── test_no_secrets_committed.py
+│   ├── test_security_utils.py
+│   ├── test_streamlit_app_smoke.py
+│   └── ...（完整列表见 tests/ 目录）
 │
 ├── test_run4.py                    # 集成测试（CSV + 二分类变量，73 项检查）
 ├── tests/
 │   └── test_data/                   # 测试用模拟数据（4 个场景）
+└── examples/                        # 内置示例数据
+    ├── government_service_satisfaction_sample.csv
+    └── variable_dictionary_sample.csv
 ```
 
 ## 安装与运行
@@ -198,10 +203,10 @@ streamlit run app.py
 ## 运行测试
 
 ```bash
-# 运行全部 pytest 测试
-python -m pytest tests/ -v
+# 运行全部 pytest 测试（650 passed, 0 failed）
+python -m pytest tests/ -q
 
-# 运行集成测试（CSV 数据 + 二分类变量）
+# 运行集成测试（CSV 数据 + 二分类变量，73/73 通过）
 python test_run4.py
 
 # Windows 一键测试
@@ -308,13 +313,13 @@ cp .env.example .env
 
 ## 使用流程
 
-1. **上传数据** — 左侧边栏上传 Excel (.xlsx/.xls) 或 CSV 文件
-2. **选择工作表**（Excel） — 自动列出所有工作表供选择
-3. **查看变量识别** — Tab「变量识别」中查看自动推断的变量类型
-4. **配置分析** — Tab「分析配置」中设置目标变量、分组变量、解释变量
-5. **查看统计结果** — 浏览单变量/双变量/多变量/可视化图表标签页
-6. **AI 报告**（可选） — Tab「AI 智能分析」中选择 LLM 厂商、输入 API Key、设置报告参数、生成报告
-7. **下载报告** — 支持 Markdown / HTML / Word 格式
+本平台采用 **5 步工作流** 设计：
+
+1. **📋 数据与变量** — 上传数据（CSV/Excel）、查看数据质量、识别变量类型、配置变量说明表
+2. **⚙️ 分析方案** — 选择目标变量/分组变量/解释变量，支持手动配置或 AI 推荐方案
+3. **📊 统计分析** — 执行统计分析，查看单变量/双变量/多变量结果
+4. **📈 可视化仪表盘** — 自动生成交互式图表，标题使用中文变量名
+5. **📄 报告工作台** — 生成模板报告或 AI 报告，支持 Markdown / HTML / DOCX 导出
 
 ## 注意事项
 

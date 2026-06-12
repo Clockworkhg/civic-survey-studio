@@ -255,7 +255,7 @@ class TestReadmeP34Keywords:
         path = os.path.join(ROOT, "README.md")
         with open(path, encoding="utf-8") as f:
             content = f.read()
-        assert "P3-4" in content, "README should have P3-4 status row"
+        assert "安全检查" in content, "README should have security status row"
 
 
 # ================================================================

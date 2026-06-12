@@ -85,7 +85,7 @@ Tab 10 提供了「💾 记住设置」功能，勾选后 API Key 将以**明文
 
 - [ ] `.env` 文件未被提交（已在 `.gitignore` 中）
 - [ ] `.streamlit/secrets.toml` 未被提交（已在 `.gitignore` 中）
-- [ ] `config/user_settings.json` 不包含真实 API Key（或已被删除）
+- [ ] `config/user_settings.json` 不包含真实 API Key（或已被删除）。**注意：`config/user_settings.json` 不在 Git 中，如需配置模板请复制 `config/user_settings.example.json`**
 - [ ] 代码中无硬编码的 API Key
 - [ ] `python -m pytest tests/test_no_secrets_committed.py -v` 全部通过
 
@@ -111,7 +111,37 @@ Streamlit 应用默认无用户认证。如果在公共服务器上部署：
 
 ---
 
-## 四、AI 报告生成前如何排除高风险变量
+## 四、AI Payload 隐私过滤机制
+
+发送给 AI 的 payload 在构建后还会经过 `filter_payload_for_ai()` 二次过滤，确保隐私变量不会泄露。
+
+### 4.0 过滤覆盖范围
+
+隐私过滤器从以下 **9 个** payload 节中移除排除变量：
+
+| Payload Section | 过滤动作 |
+|----------------|---------|
+| `variables` | 移除排除变量条目 |
+| `variable_schema` | 移除排除变量条目 |
+| `variable_name_map` | 移除排除变量映射 |
+| `analysis_results` | 移除涉及排除变量的结果 |
+| `data_overview.column_names` | 移除排除列名 |
+| `analysis_plan` | 移除排除变量的计划项 |
+| `warnings` | 移除涉及排除变量的警告文本 |
+| `user_analysis_config` | 清除排除列表中的变量名 |
+| metadata | 用计数代替具体名称（`_privacy_excluded_count`） |
+
+### 4.1 send_to_ai_mode 规则
+
+| 模式 | 行为 |
+|------|------|
+| `exclude` | 从 payload 中完全移除该变量 |
+| `none` | 等同于 `exclude` |
+| `aggregate_only` | 保留变量结构但剥离 example_values / value_labels |
+| `masked_examples` | 保留脱敏后的样例 |
+| `full` | 完整发送（需二次确认） |
+
+## 五、AI 报告生成前如何排除高风险变量
 
 ### 4.1 自动评估
 
@@ -141,9 +171,9 @@ Streamlit 应用默认无用户认证。如果在公共服务器上部署：
 
 ---
 
-## 五、outputs/ 目录清理说明
+## 六、outputs/ 目录清理说明
 
-### 5.1 outputs/ 中有什么
+### 6.1 outputs/ 中有什么
 
 `outputs/` 目录保存了生成的报告文件：
 
@@ -151,12 +181,12 @@ Streamlit 应用默认无用户认证。如果在公共服务器上部署：
 - `.html` — HTML 格式报告
 - `.docx` — Word 格式报告
 
-### 5.2 安全风险
+### 6.2 安全风险
 
 - 报告中可能包含统计结果、数据摘要甚至（如选择了 `full` 发送模式）变量原文引用。
 - **发布项目到 GitHub 前，建议清理 `outputs/` 目录。**
 
-### 5.3 清理方法
+### 6.3 清理方法
 
 `outputs/` 已在 `.gitignore` 中被忽略，不会被 Git 跟踪。
 
@@ -186,9 +216,9 @@ print(f"Deleted {len(result['deleted'])} files")
 
 ---
 
-## 六、发布前 Secrets 检查
+## 七、发布前 Secrets 检查
 
-### 6.1 自动扫描
+### 7.1 自动扫描
 
 项目提供了 secrets 扫描测试：
 
@@ -204,7 +234,7 @@ python -m pytest tests/test_no_secrets_committed.py -v
 - `.env` 和 `.streamlit/secrets.toml` 是否存在于仓库中
 - `.gitignore` 是否正确配置
 
-### 6.2 手动检查清单
+### 7.2 手动检查清单
 
 - [ ] 代码中无硬编码 API Key
 - [ ] `.env.example` 中所有值为空
@@ -216,15 +246,15 @@ python -m pytest tests/test_no_secrets_committed.py -v
 
 ---
 
-## 七、公共部署的风险提醒
+## 八、公共部署的风险提醒
 
-### 7.1 Streamlit 特性
+### 8.1 Streamlit 特性
 
 - **无内置用户认证** — 任何知道 URL 的人都可以访问。
 - **无内置权限控制** — 所有访问者看到相同的界面和功能。
 - **会话隔离** — 每个用户有独立的 `session_state`，数据不会在用户间泄露。
 
-### 7.2 风险矩阵
+### 8.2 风险矩阵
 
 | 部署方式 | 数据暴露风险 | API Key 风险 | 建议 |
 |---------|------------|-------------|------|
@@ -233,7 +263,7 @@ python -m pytest tests/test_no_secrets_committed.py -v
 | Streamlit Cloud (公开) | **高** | **高** | ⚠️ 不建议；使用私有应用 |
 | 云服务器 (公开) | **高** | **高** | ⚠️ 需额外添加认证层 |
 
-### 7.3 降低风险的措施
+### 8.3 降低风险的措施
 
 如果必须在非本地环境运行：
 

@@ -42,8 +42,8 @@ class TestTabAiAnalysisImports:
             assert name in param_names, f"Missing parameter: {name}"
 
     def test_save_current_settings_importable(self):
-        """_save_current_settings should be importable (moved from app.py)."""
-        from src.ui.tabs.tab_ai_analysis import _save_current_settings
+        """_save_current_settings should be importable from api_config module."""
+        from src.ui.api_config import _save_current_settings
         assert callable(_save_current_settings)
 
     def test_build_chart_summaries_importable(self):
@@ -62,9 +62,9 @@ class TestSaveCurrentSettings:
 
     def test_save_with_remember_true(self):
         """When remember=True, save_user_settings should be called."""
-        from src.ui.tabs.tab_ai_analysis import _save_current_settings
-        with patch("src.ui.tabs.tab_ai_analysis.save_user_settings") as mock_save:
-            with patch("src.ui.tabs.tab_ai_analysis.clear_user_settings") as mock_clear:
+        from src.ui.api_config import _save_current_settings
+        with patch("src.ui.api_config.save_user_settings") as mock_save:
+            with patch("src.ui.api_config.clear_user_settings") as mock_clear:
                 _save_current_settings("openai", "sk-xxx", "gpt-4o", remember=True)
                 mock_save.assert_called_once_with({
                     "provider_key": "openai",
@@ -76,9 +76,9 @@ class TestSaveCurrentSettings:
 
     def test_save_with_remember_false(self):
         """When remember=False, clear_user_settings should be called."""
-        from src.ui.tabs.tab_ai_analysis import _save_current_settings
-        with patch("src.ui.tabs.tab_ai_analysis.save_user_settings") as mock_save:
-            with patch("src.ui.tabs.tab_ai_analysis.clear_user_settings") as mock_clear:
+        from src.ui.api_config import _save_current_settings
+        with patch("src.ui.api_config.save_user_settings") as mock_save:
+            with patch("src.ui.api_config.clear_user_settings") as mock_clear:
                 _save_current_settings("openai", "sk-xxx", "gpt-4o", remember=False)
                 mock_clear.assert_called_once()
                 mock_save.assert_not_called()

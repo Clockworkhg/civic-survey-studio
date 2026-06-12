@@ -8,14 +8,15 @@ Tab modules:
 - tab_data_upload:        Tab 1 — data upload / preview
 - tab_data_overview:      Tab 2 — data quality overview
 - tab_variable_config:    Tab 3 — variable recognition + AI planning
-- tab_quick_report:       Tab 3 — one-click AI report generation
+- tab_quick_report:       Tab 3 — current analysis config summary
 - tab_analysis_config:    Tab 4 — analysis configuration
 - tab_univariate_analysis: Tab 5 — univariate statistics
 - tab_bivariate_analysis:  Tab 6 — bivariate (cross) analysis
 - tab_multivariate_analysis: Tab 7 — multivariate regression
 - tab_visualization:      Tab 8 — chart dashboard + explorer
 - tab_template_report:   Tab 9 — template-based report generation (non-AI)
-- tab_ai_analysis:       Tab 10 — AI intelligent analysis (provider, model, report)
+- tab_ai_analysis:       Tab 10 — AI intelligent analysis (full-featured report generation)
+- api_config:             Shared AI API configuration (sidebar)
 """
 
 from src.ui.tabs.tab_data_upload import render_tab_data_upload

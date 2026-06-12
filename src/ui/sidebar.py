@@ -135,3 +135,17 @@ def render_sidebar() -> Dict[str, Any]:
         "profile_key": profile_key,
         "load_example_clicked": load_example_clicked,
     }
+
+
+def render_api_sidebar_section() -> None:
+    """Render the AI API configuration section inside a sidebar expander.
+
+    Auto-expands when no API key is configured; collapses once configured.
+    """
+    from src.ui.api_config import render_api_config_section
+
+    with st.sidebar:
+        st.markdown("---")
+        has_key = bool(st.session_state.get("_api_key", ""))
+        with st.expander("🤖 AI API 设置", expanded=not has_key):
+            render_api_config_section(location="sidebar")

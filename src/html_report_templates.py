@@ -659,7 +659,7 @@ def _process_inline_formatting(text: str) -> str:
     # 加粗
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
     # 斜体
-    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<em>\1</em>", text)
+    text = re.sub(r"(?<![\\*])\*(?!\*)(.+?)(?<![\\*])\*(?!\*)", r"<em>\1</em>", text)
     return _escape_html_except_tags(text)
 
 

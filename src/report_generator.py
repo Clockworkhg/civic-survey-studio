@@ -772,10 +772,8 @@ def _render_html(sections: List[Dict], ctx: _AnalysisContext) -> str:
         for para in sec.get("paragraphs", []):
             cls = ' class="no_indent"' if para.startswith("**") and para.endswith("**") else ""
             # 处理 Markdown 加粗
-            para_html = para.replace("**", "<strong>").replace("**", "</strong>")
-            # 简单处理：将连续的加粗标记正确配对
             import re
-            para_html = re.sub(r"<strong>(.*?)</strong>", r"<strong>\1</strong>", para_html)
+            para_html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", para)
             html_parts.append(f"<p{cls}>{para_html}</p>")
 
         for table_data in sec.get("tables", []):
@@ -1661,9 +1659,8 @@ def _render_generic_html(sections: List[Dict], ctx: _GenericReportContext) -> st
 
         for para in sec.get("paragraphs", []):
             cls = ' class="no_indent"' if para.startswith("**") else ""
-            para_html = para.replace("**", "<strong>").replace("**", "</strong>")
             import re
-            para_html = re.sub(r"<strong>(.*?)</strong>", r"<strong>\1</strong>", para_html)
+            para_html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", para)
             html_parts.append(f"<p{cls}>{para_html}</p>")
 
         for table_data in sec.get("tables", []):

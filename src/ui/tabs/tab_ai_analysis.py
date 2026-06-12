@@ -8,7 +8,6 @@ changed.
 
 from __future__ import annotations
 
-import datetime
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List
@@ -16,20 +15,9 @@ from typing import Any, Dict, List
 import pandas as pd
 import streamlit as st
 
-from src.provider_config import (
-    get_provider,
-    get_api_key,
-    list_providers,
-)
-from src.llm_client import test_connection
-from src.model_registry import (
-    get_available_models,
-    load_cached_models,
-)
 from src.analysis_packager import build_analysis_payload, to_json_payload
 from src.generic_analysis import run_full_analysis
 from src.generic_charts import generate_dashboard_charts
-from src.user_settings import save_user_settings, clear_user_settings
 from src.schema_infer import _assess_privacy_risk
 from src.literature_search import search_papers
 from src.literature_review import parse_year_range
@@ -46,17 +34,14 @@ from src.ui.report_generation import (
     build_llm_config_from_ui,
     build_report_config_from_ui,
     run_report_generation_from_ui,
-    resolve_default_ai_model,
 )
 from src.ui.messages import (
-    get_no_api_key_message,
     get_no_api_key_short_message,
     get_literature_empty_message,
     get_literature_error_message,
     get_literature_keywords_hint,
     get_privacy_warning_message,
     get_sensitive_field_data_explanation,
-    format_user_friendly_error,
     get_ai_report_error_message,
 )
 from src.ui.security import (
@@ -67,21 +52,8 @@ from src.ui.security import (
 
 
 # ================================================================
-# Private helpers (moved from app.py — only used by Tab 10)
+# Private helpers
 # ================================================================
-
-def _save_current_settings(provider_key: str, api_key: str, model: str, remember: bool) -> None:
-    """保存或清除当前 API 设置到本地文件。"""
-    if remember:
-        save_user_settings({
-            "provider_key": provider_key,
-            "api_key": api_key,
-            "model": model,
-            "remember": True,
-        })
-    else:
-        clear_user_settings()
-
 
 def _build_chart_summaries(dashboard_charts: List) -> List[Dict[str, Any]]:
     """将 generate_dashboard_charts 的输出转为文字摘要列表。"""
@@ -178,7 +150,7 @@ def render_tab_ai_analysis(
     """
 
     st.markdown("### 🤖 AI 自动分析与报告生成")
-    st.caption("选择 AI 厂商并配置模型，由大语言模型基于统计数据自动撰写分析报告。")
+    st.caption("由大语言模型基于统计数据自动撰写分析报告。API 配置请在左侧边栏「🤖 AI API 设置」中完成。")
 
     # ---- 隐私提示 ----
     st.warning(
@@ -187,1213 +159,858 @@ def render_tab_ai_analysis(
         icon="🔒",
     )
 
-    # ---- 厂商配置 ----
-    st.markdown("#### 1. 选择 AI 厂商")
+    # ---- 从 session_state 读取 API 配置（由侧边栏 api_config 模块设置） ----
+    provider_key = st.session_state.get("_provider_key", "")
+    provider_config = st.session_state.get("_provider_config", {})
+    resolved_api_key = st.session_state.get("_api_key", "")
+    selected_model = st.session_state.get("_ai_model", "")
 
-    # 加载厂商列表
-    try:
-        providers_list = list_providers()
-    except Exception as e:
-        st.error(f"加载 LLM 厂商配置失败：{e}")
-        providers_list = []
-
-    if not providers_list:
-        st.warning("未找到 LLM 厂商配置。请检查 config/llm_providers.yaml 文件。")
-    else:
-        provider_options = {p["display_name"]: p for p in providers_list}
-        provider_names = list(provider_options.keys())
-        # 使用保存的厂商作为默认选中
-        saved_provider_key = st.session_state.get("_saved_provider_key", "")
-        default_provider_idx = 0
-        for i, name in enumerate(provider_names):
-            if provider_options[name]["key"] == saved_provider_key:
-                default_provider_idx = i
-                break
-        selected_display = st.selectbox(
-            "AI 厂商：",
-            provider_names,
-            index=default_provider_idx,
-            key="ai_provider_display",
+    # ---- API 配置状态卡片 ----
+    st.markdown("#### 1. API 配置状态")
+    if not resolved_api_key or not selected_model:
+        st.warning(
+            "⚠️ 尚未配置 AI API。请在左侧边栏 **「🤖 AI API 设置」** 中"
+            "选择厂商、输入 API Key 并选择模型。"
         )
-        selected_provider_info = provider_options[selected_display]
-        provider_key = selected_provider_info["key"]
-        provider_config = get_provider(provider_key)
+    else:
+        from src.ui.security import mask_api_key
+        display_name = provider_config.get("display_name", provider_key) if provider_config else provider_key
+        st.success(
+            f"✅ 已配置：**{display_name}** · "
+            f"模型：`{selected_model}` · "
+            f"密钥：{mask_api_key(resolved_api_key)}"
+        )
 
-        if provider_config is None:
-            st.error(f"未找到厂商配置: {provider_key}")
-        else:
-            protocol = provider_config.get("protocol", "")
-            default_model = provider_config.get("default_model", "")
-            api_key_env = provider_config.get("api_key_env", "")
-            allow_custom = provider_config.get("allow_custom_model", True)
-            model_list_cfg = provider_config.get("model_list", {})
-
-            # 显示厂商信息
-            with st.expander("📋 厂商配置详情", expanded=False):
-                st.json({
-                    "display_name": selected_display,
-                    "protocol": protocol,
-                    "base_url": provider_config.get("base_url", ""),
-                    "default_model": default_model,
-                    "api_key_env": api_key_env,
-                    "model_list_enabled": model_list_cfg.get("enabled", False),
-                    "model_list_note": model_list_cfg.get("note", ""),
-                })
-
-            # ---- 自定义 OpenAI Compatible API ----
-            custom_base_url = provider_config.get("base_url", "")
-            custom_chat_path = "/chat/completions"
-            custom_auth_type = "bearer"
-            custom_header_name = "Authorization"
-            custom_prefix = "Bearer"
-            custom_model_list_path = model_list_cfg.get("path", "/models")
-            custom_response_format = model_list_cfg.get("response_format", "openai_models")
-
-            if provider_key == "custom_openai":
-                st.markdown("#### 自定义 API 配置")
-                cc1, cc2 = st.columns(2)
-                with cc1:
-                    custom_display_name = st.text_input(
-                        "自定义厂商名称", value="自定义 API",
-                        key="custom_display_name",
-                    )
-                    custom_base_url = st.text_input(
-                        "Base URL", value=custom_base_url or "",
-                        placeholder="https://your-api.example.com/v1",
-                        key="custom_base_url",
-                    )
-                    custom_chat_path = st.text_input(
-                        "Chat Path", value="/chat/completions",
-                        placeholder="/chat/completions",
-                        key="custom_chat_path",
-                    )
-                with cc2:
-                    custom_model_list_path = st.text_input(
-                        "模型列表路径", value=custom_model_list_path,
-                        placeholder="/models",
-                        key="custom_model_list_path",
-                    )
-                    custom_response_format = st.selectbox(
-                        "响应格式",
-                        ["openai_models", "generic_models"],
-                        index=0 if custom_response_format in ("openai_models", "generic_models") else 1,
-                        key="custom_response_format",
-                        help="openai_models: 期望 {\"data\": [...]} 格式；generic_models: 自动探测",
-                    )
-
-                st.markdown("**鉴权方式**")
-                ca1, ca2, ca3 = st.columns(3)
-                with ca1:
-                    custom_auth_type = st.selectbox(
-                        "Auth Type",
-                        ["bearer", "api_key_header"],
-                        key="custom_auth_type",
-                    )
-                with ca2:
-                    custom_header_name = st.text_input(
-                        "Header Name",
-                        value="api-key" if custom_auth_type == "api_key_header" else "Authorization",
-                        key="custom_header_name",
-                    )
-                with ca3:
-                    custom_prefix = st.text_input(
-                        "Prefix", value="" if custom_auth_type == "api_key_header" else "Bearer",
-                        key="custom_prefix",
-                    )
-
-                # 重写 provider_config 以便后续使用
-                provider_config = dict(provider_config)
-                provider_config["base_url"] = custom_base_url
-                provider_config["auth"] = {
-                    "type": custom_auth_type,
-                    "header_name": custom_header_name,
-                    "prefix": custom_prefix,
-                }
-                provider_config["model_list"] = {
-                    **model_list_cfg,
-                    "path": custom_model_list_path,
-                    "response_format": custom_response_format,
-                }
-
-            # ---- API Key ----
-            st.markdown("#### 2. API Key")
-            api_key_hint = ""
-            if api_key_env:
-                api_key_hint = f"环境变量: {api_key_env}"
-            elif provider_key == "custom_openai":
-                api_key_hint = "输入你的 API Key"
-
-            # 使用保存的 API Key 作为默认值
-            saved_api_key = st.session_state.get("_saved_api_key", "")
-            user_api_key = st.text_input(
-                "API Key" + (f"（{api_key_hint}）" if api_key_hint else ""),
-                type="password",
-                value=saved_api_key if saved_api_key else "",
-                key="ai_api_key",
-                placeholder="输入 API Key，或留空以使用环境变量 / Streamlit Secrets",
+        # ---- LLM 生成参数 ----
+        st.markdown("#### 4. LLM 生成参数")
+        cp1, cp2 = st.columns(2)
+        with cp1:
+            temperature = st.slider(
+                "Temperature", 0.0, 2.0, 0.3, 0.1,
+                key="ai_temperature",
+                help="越低越确定，越高越随机。报告建议 0.2-0.5。",
             )
-            resolved_api_key = get_api_key(provider_config, user_api_key)
-            # 持久化到 session_state 供其他 tab 使用
-            st.session_state["_api_key"] = resolved_api_key
-            st.session_state["_provider_key"] = provider_key
-            st.session_state["_provider_config"] = provider_config
-
-            # ── 记住设置 ──
-            saved_remember = st.session_state.get("_saved_remember", False)
-            remember_me = st.checkbox(
-                "💾 记住设置（API Key 将以明文保存在本地文件中，仅建议在个人设备上使用）",
-                value=saved_remember,
-                key="gen_remember_me",
+        with cp2:
+            max_tokens = st.number_input(
+                "Max Tokens", 512, 32768, 4096, 512,
+                key="ai_max_tokens",
+                help="生成报告的最大 token 数。",
             )
-            st.session_state["_saved_remember"] = remember_me
 
-            if not resolved_api_key:
-                st.info(get_no_api_key_message(api_key_env))
+        # ---- 报告参数设置 ----
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.markdown("#### 5. 📝 报告参数设置")
+        st.caption("设置报告主题、结构、写作风格和导出样式。")
 
-            # ============================================
-            # 模型选择区域
-            # ============================================
-            st.markdown("#### 3. 模型选择")
-
-            # 确保 _ai_model 有合理的默认值（保存值 > provider 默认 > 空）
-            _effective_default = resolve_default_ai_model(
-                provider_config, st.session_state.get("_saved_model", "")
+        # 报告主题和研究对象
+        rp_col1, rp_col2 = st.columns(2)
+        with rp_col1:
+            report_title_input = st.text_input(
+                "报告标题",
+                value=config.get("report_title", "问卷数据分析报告"),
+                key="ai_report_title",
+                help="将作为报告的主标题显示。",
             )
-            if not st.session_state.get("_ai_model"):
-                st.session_state["_ai_model"] = _effective_default
+        with rp_col2:
+            research_subject = st.text_input(
+                "研究对象",
+                value=config.get("research_subject", ""),
+                key="ai_research_subject",
+                placeholder="例如：某电商平台用户、某社区居民…",
+                help="描述数据的研究对象/场景，帮助 AI 理解数据背景。",
+            )
 
-            model_list_enabled = model_list_cfg.get("enabled", False)
-            ml_note = model_list_cfg.get("note", "")
+        # 报告结构 / 风格 / 长度 / 主题 — 统一来源
+        report_structure = st.selectbox(
+            "报告结构类型",
+            get_structure_options(),
+            key="ai_report_structure",
+            help="决定报告的章节结构。不同结构适用于不同场景。",
+        )
 
-            # ── 支持联网获取的厂商 ──
-            if model_list_enabled:
-                # 检查缓存
-                has_cache = False
-                cache_info_text = ""
-                try:
-                    cached = load_cached_models(provider_key)
-                    if cached.get("models"):
-                        cache_time = cached.get("updated_at")
-                        if cache_time:
-                            cache_dt = datetime.datetime.fromtimestamp(cache_time)
-                            cache_info_text = f"📦 缓存模型列表 · 更新时间：{cache_dt.strftime('%Y-%m-%d %H:%M:%S')}"
-                            has_cache = True
-                        else:
-                            cache_info_text = "📦 使用缓存模型列表"
-                            has_cache = True
-                except Exception:
-                    pass
+        rp_col3, rp_col4 = st.columns(2)
+        with rp_col3:
+            report_style = st.selectbox(
+                "写作语言风格",
+                get_style_options(),
+                key="ai_report_style",
+                help="决定报告的语言表达方式。",
+            )
+        with rp_col4:
+            report_length = st.selectbox(
+                "报告篇幅",
+                get_length_options(),
+                key="ai_report_length",
+                help="控制报告的详细程度。",
+            )
 
-                col_fetch1, col_fetch2 = st.columns([1, 3])
-                with col_fetch1:
-                    fetch_btn = st.button(
-                        "🌐 联网获取模型列表",
-                        key="ai_fetch_models",
-                        disabled=not bool(resolved_api_key),
-                        help="需要先输入 API Key" if not resolved_api_key else "从 API 获取最新模型列表",
-                    )
+        # HTML 导出主题
+        html_theme = st.selectbox(
+            "HTML 导出主题",
+            get_html_theme_options(),
+            index=3,  # 默认"简洁课程作业风"
+            key="ai_html_theme",
+            help="决定 HTML 报告的视觉样式。不影响 Markdown 和 Word 导出。",
+        )
 
-                # 自定义 API 额外选项
-                if provider_key == "custom_openai":
-                    with col_fetch2:
-                        st.caption(f"请求: GET {custom_base_url or '{base_url}'}{custom_model_list_path}")
+        # 更新 config 中的标题
+        if report_title_input:
+            config["report_title"] = report_title_input
+        if research_subject:
+            config["research_subject"] = research_subject
 
-                # 执行联网获取
-                if fetch_btn and resolved_api_key:
-                    with st.spinner("正在联网获取模型列表…"):
-                        custom_opts = {}
-                        if provider_key == "custom_openai":
-                            custom_opts = {
-                                "model_list_path": custom_model_list_path,
-                                "response_format": custom_response_format,
-                            }
-                        result = get_available_models(
-                            provider_key=provider_key,
-                            provider_config=provider_config,
-                            api_key=resolved_api_key,
-                            refresh=True,
-                            custom_options=custom_opts if custom_opts else None,
-                        )
-                        if result.get("success"):
-                            st.session_state.ai_models_fetched = True
-                            st.session_state.ai_available_models = result.get("models", [])
-                            st.session_state.ai_models_source = result.get("source", "remote")
-                            st.session_state.ai_models_updated_at = result.get("updated_at")
-                            st.session_state.ai_models_error = ""
-                            st.rerun()
-                        else:
-                            st.session_state.ai_models_fetched = False
-                            st.session_state.ai_models_error = result.get("error", "获取失败")
-                            st.rerun()
+        # ---- 文献综述检索（可选）----
+        literature_config: dict = {"enabled": False}  # 默认值
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.markdown("#### 📚 文献综述检索（可选）")
+        st.caption(
+            "自动检索真实学术文献（Semantic Scholar / OpenAlex / CrossRef），"
+            "由 AI 合成文献综述并注入「学术论文式报告」。"
+        )
 
-                # 展示缓存状态 / 获取结果
-                if st.session_state.ai_models_fetched and st.session_state.ai_available_models:
-                    source_label = {
-                        "remote": "🔄 已从 API 刷新",
-                        "cache": "📦 使用缓存",
-                        "cache_expired": "📦 使用过期缓存",
-                    }.get(st.session_state.ai_models_source, "")
+        enable_literature = st.checkbox(
+            "启用文献综述检索",
+            value=st.session_state.get("_lit_enabled", False),
+            key="ai_enable_literature",
+            help=(
+                "启用后，系统将根据您输入的关键词检索免费学术文献数据库，"
+                "并由 AI 合成文献综述。**仅在「学术论文式报告」结构下生效。**"
+            ),
+        )
 
-                    if st.session_state.ai_models_updated_at:
-                        dt = datetime.datetime.fromtimestamp(st.session_state.ai_models_updated_at)
-                        source_label += f" · {dt.strftime('%Y-%m-%d %H:%M:%S')}"
+        if enable_literature:
+            st.session_state["_lit_enabled"] = True
+            lit_col1, lit_col2 = st.columns(2)
+            with lit_col1:
+                literature_keywords = st.text_input(
+                    "研究关键词",
+                    value=st.session_state.get("_lit_keywords", ""),
+                    key="ai_literature_keywords",
+                    placeholder="例如：公众满意度 政务服务 影响因素",
+                    help="输入 2-5 个核心研究关键词（中文或英文均可），用于检索相关学术文献。",
+                )
+                st.caption(get_literature_keywords_hint())
+                st.session_state["_lit_keywords"] = literature_keywords
+            with lit_col2:
+                literature_year_range = st.selectbox(
+                    "发表时间范围",
+                    ["不限", "近20年", "近10年", "近5年"],
+                    index=0,
+                    key="ai_literature_year_range",
+                    help="限定检索文献的发表年份范围。",
+                )
 
-                    st.success(f"{source_label} · 共 {len(st.session_state.ai_available_models)} 个模型")
+            literature_max_sources = st.slider(
+                "最大文献来源数",
+                min_value=5, max_value=30, value=15, step=5,
+                key="ai_literature_max_sources",
+                help="检索并引用的最大文献数量。更多文献可能延长检索和 AI 合成时间。",
+            )
 
-                    # 使用 session_state 中的模型列表
-                    available_models = st.session_state.ai_available_models
+            literature_config = {
+                "enabled": True,
+                "keywords": literature_keywords,
+                "max_sources": literature_max_sources,
+                "year_range": literature_year_range,
+            }
 
-                    if available_models:
-                        model_ids = [m["id"] for m in available_models]
-                        # 默认选中
-                        default_idx = 0
-                        for i, m in enumerate(available_models):
-                            if m["id"] == default_model or m["id"] == st.session_state._ai_model:
-                                default_idx = i
-                                break
+            # ── 文献检索预览 ──
+            lit_prev_col1, lit_prev_col2 = st.columns([1, 3])
+            with lit_prev_col1:
+                preview_lit_btn = st.button(
+                    "🔍 检索并预览文献",
+                    key="preview_literature_btn",
+                    help="立即检索学术文献并预览结果（不生成报告）。",
+                )
+            with lit_prev_col2:
+                lit_preview_placeholder = st.empty()
 
-                        selected_model = st.selectbox(
-                            "从列表中选择模型：",
-                            model_ids,
-                            index=default_idx,
-                            key="ai_model_select",
-                        )
-                        # 同步到 session_state
-                        st.session_state._ai_model = selected_model
-                    else:
-                        st.warning("模型列表为空，请手动输入模型名。")
-                        selected_model = st.text_input(
-                            "模型名：",
-                            value=st.session_state._ai_model or default_model,
-                            key="ai_model_input",
-                            placeholder="输入模型名",
-                        )
-                        st.session_state._ai_model = selected_model
-
-                elif st.session_state.ai_models_error:
-                    st.warning(f"⚠️ {st.session_state.ai_models_error}")
-                    if has_cache:
-                        st.info(cache_info_text)
-                    selected_model = st.text_input(
-                        "模型名（手动输入）：",
-                        value=st.session_state._ai_model or default_model,
-                        key="ai_model_input_fallback",
-                        placeholder="输入模型名",
-                    )
-                    st.session_state._ai_model = selected_model
-
-                elif has_cache and not st.session_state.ai_models_fetched:
-                    st.info(f"{cache_info_text} · 点击「联网获取」刷新")
-                    selected_model = st.text_input(
-                        "模型名：",
-                        value=st.session_state._ai_model or default_model,
-                        key="ai_model_input_cached",
-                        placeholder="输入模型名",
-                    )
-                    st.session_state._ai_model = selected_model
-
+            if preview_lit_btn:
+                if not literature_keywords.strip():
+                    lit_preview_placeholder.error("❌ 请先输入研究关键词。")
                 else:
-                    if not resolved_api_key:
-                        st.caption("💡 输入 API Key 后可联网获取模型列表")
-                    selected_model = st.text_input(
-                        "模型名：",
-                        value=default_model,
-                        key="ai_model_input_direct",
-                        placeholder="输入模型名，如 gpt-4o, deepseek-chat",
-                    )
-                    st.session_state._ai_model = selected_model
-
-            # ── 不支持联网获取的厂商 ──
-            else:
-                if ml_note:
-                    st.info(f"💡 {ml_note}")
-                selected_model = st.text_input(
-                    "模型名（手动输入）：",
-                    value=default_model,
-                    key="ai_model_input_manual",
-                    placeholder="输入模型名或 Endpoint ID",
-                )
-                st.session_state._ai_model = selected_model
-
-            # ── 自动保存设置 ──
-            _save_current_settings(
-                provider_key=provider_key,
-                api_key=user_api_key,
-                model=st.session_state.get("_ai_model", ""),
-                remember=remember_me,
-            )
-
-            # ---- LLM 生成参数 ----
-            st.markdown("#### 4. LLM 生成参数")
-            cp1, cp2 = st.columns(2)
-            with cp1:
-                temperature = st.slider(
-                    "Temperature", 0.0, 2.0, 0.3, 0.1,
-                    key="ai_temperature",
-                    help="越低越确定，越高越随机。报告建议 0.2-0.5。",
-                )
-            with cp2:
-                max_tokens = st.number_input(
-                    "Max Tokens", 512, 32768, 4096, 512,
-                    key="ai_max_tokens",
-                    help="生成报告的最大 token 数。",
-                )
-
-            # ---- 报告参数设置 ----
-            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-            st.markdown("#### 5. 📝 报告参数设置")
-            st.caption("设置报告主题、结构、写作风格和导出样式。")
-
-            # 报告主题和研究对象
-            rp_col1, rp_col2 = st.columns(2)
-            with rp_col1:
-                report_title_input = st.text_input(
-                    "报告标题",
-                    value=config.get("report_title", "问卷数据分析报告"),
-                    key="ai_report_title",
-                    help="将作为报告的主标题显示。",
-                )
-            with rp_col2:
-                research_subject = st.text_input(
-                    "研究对象",
-                    value=config.get("research_subject", ""),
-                    key="ai_research_subject",
-                    placeholder="例如：某电商平台用户、某社区居民…",
-                    help="描述数据的研究对象/场景，帮助 AI 理解数据背景。",
-                )
-
-            # 报告结构 / 风格 / 长度 / 主题 — 统一来源
-            report_structure = st.selectbox(
-                "报告结构类型",
-                get_structure_options(),
-                key="ai_report_structure",
-                help="决定报告的章节结构。不同结构适用于不同场景。",
-            )
-
-            rp_col3, rp_col4 = st.columns(2)
-            with rp_col3:
-                report_style = st.selectbox(
-                    "写作语言风格",
-                    get_style_options(),
-                    key="ai_report_style",
-                    help="决定报告的语言表达方式。",
-                )
-            with rp_col4:
-                report_length = st.selectbox(
-                    "报告篇幅",
-                    get_length_options(),
-                    key="ai_report_length",
-                    help="控制报告的详细程度。",
-                )
-
-            # HTML 导出主题
-            html_theme = st.selectbox(
-                "HTML 导出主题",
-                get_html_theme_options(),
-                index=3,  # 默认"简洁课程作业风"
-                key="ai_html_theme",
-                help="决定 HTML 报告的视觉样式。不影响 Markdown 和 Word 导出。",
-            )
-
-            # 更新 config 中的标题
-            if report_title_input:
-                config["report_title"] = report_title_input
-            if research_subject:
-                config["research_subject"] = research_subject
-
-            # ---- 文献综述检索（可选）----
-            literature_config: dict = {"enabled": False}  # 默认值
-            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-            st.markdown("#### 📚 文献综述检索（可选）")
-            st.caption(
-                "自动检索真实学术文献（Semantic Scholar / OpenAlex / CrossRef），"
-                "由 AI 合成文献综述并注入「学术论文式报告」。"
-            )
-
-            enable_literature = st.checkbox(
-                "启用文献综述检索",
-                value=st.session_state.get("_lit_enabled", False),
-                key="ai_enable_literature",
-                help=(
-                    "启用后，系统将根据您输入的关键词检索免费学术文献数据库，"
-                    "并由 AI 合成文献综述。**仅在「学术论文式报告」结构下生效。**"
-                ),
-            )
-
-            if enable_literature:
-                st.session_state["_lit_enabled"] = True
-                lit_col1, lit_col2 = st.columns(2)
-                with lit_col1:
-                    literature_keywords = st.text_input(
-                        "研究关键词",
-                        value=st.session_state.get("_lit_keywords", ""),
-                        key="ai_literature_keywords",
-                        placeholder="例如：公众满意度 政务服务 影响因素",
-                        help="输入 2-5 个核心研究关键词（中文或英文均可），用于检索相关学术文献。",
-                    )
-                    st.caption(get_literature_keywords_hint())
-                    st.session_state["_lit_keywords"] = literature_keywords
-                with lit_col2:
-                    literature_year_range = st.selectbox(
-                        "发表时间范围",
-                        ["不限", "近20年", "近10年", "近5年"],
-                        index=0,
-                        key="ai_literature_year_range",
-                        help="限定检索文献的发表年份范围。",
-                    )
-
-                literature_max_sources = st.slider(
-                    "最大文献来源数",
-                    min_value=5, max_value=30, value=15, step=5,
-                    key="ai_literature_max_sources",
-                    help="检索并引用的最大文献数量。更多文献可能延长检索和 AI 合成时间。",
-                )
-
-                literature_config = {
-                    "enabled": True,
-                    "keywords": literature_keywords,
-                    "max_sources": literature_max_sources,
-                    "year_range": literature_year_range,
-                }
-
-                # ── 文献检索预览 ──
-                lit_prev_col1, lit_prev_col2 = st.columns([1, 3])
-                with lit_prev_col1:
-                    preview_lit_btn = st.button(
-                        "🔍 检索并预览文献",
-                        key="preview_literature_btn",
-                        help="立即检索学术文献并预览结果（不生成报告）。",
-                    )
-                with lit_prev_col2:
-                    lit_preview_placeholder = st.empty()
-
-                if preview_lit_btn:
-                    if not literature_keywords.strip():
-                        lit_preview_placeholder.error("❌ 请先输入研究关键词。")
-                    else:
-                        with lit_preview_placeholder.status(
-                            f"正在检索文献: {literature_keywords}...", expanded=True
-                        ) as lit_status:
-                            try:
-                                year_from, _ = parse_year_range(literature_year_range)
-                                papers = search_papers(
-                                    literature_keywords,
-                                    max_results=literature_max_sources,
-                                    year_from=year_from,
-                                )
-                                if papers:
-                                    st.session_state["_lit_preview_papers"] = papers
-                                    st.session_state["_lit_preview_keywords"] = literature_keywords
-                                    lit_status.update(
-                                        label=f"✅ 检索完成：找到 {len(papers)} 篇论文",
-                                        state="complete",
-                                    )
-                                    # 展示论文卡片
-                                    for i, p in enumerate(papers[:10], 1):
-                                        with st.container():
-                                            st.markdown(
-                                                f"**{i}. {p.title}**  "
-                                                f"({p.year or 'n.d.'})  "
-                                                f"`{p.source}`"
-                                            )
-                                            if p.doi:
-                                                st.caption(f"DOI: [{p.doi}](https://doi.org/{p.doi})")
-                                            if p.abstract:
-                                                abs_preview = p.abstract[:250] + ("..." if len(p.abstract) > 250 else "")
-                                                st.caption(abs_preview)
-                                            st.markdown("---")
-                                    if len(papers) > 10:
-                                        st.caption(f"... 还有 {len(papers) - 10} 篇，可在生成报告中查看完整列表")
-                                else:
-                                    st.session_state["_lit_preview_papers"] = []
-                                    lit_status.update(
-                                        label="⚠️ 未找到相关文献",
-                                        state="error",
-                                    )
-                                    st.markdown(get_literature_empty_message(literature_keywords))
-                            except Exception as e:
+                    with lit_preview_placeholder.status(
+                        f"正在检索文献: {literature_keywords}...", expanded=True
+                    ) as lit_status:
+                        try:
+                            year_from, _ = parse_year_range(literature_year_range)
+                            papers = search_papers(
+                                literature_keywords,
+                                max_results=literature_max_sources,
+                                year_from=year_from,
+                            )
+                            if papers:
+                                st.session_state["_lit_preview_papers"] = papers
+                                st.session_state["_lit_preview_keywords"] = literature_keywords
                                 lit_status.update(
-                                    label="⚠️ 文献检索失败",
+                                    label=f"✅ 检索完成：找到 {len(papers)} 篇论文",
+                                    state="complete",
+                                )
+                                # 展示论文卡片
+                                for i, p in enumerate(papers[:10], 1):
+                                    with st.container():
+                                        st.markdown(
+                                            f"**{i}. {p.title}**  "
+                                            f"({p.year or 'n.d.'})  "
+                                            f"`{p.source}`"
+                                        )
+                                        if p.doi:
+                                            st.caption(f"DOI: [{p.doi}](https://doi.org/{p.doi})")
+                                        if p.abstract:
+                                            abs_preview = p.abstract[:250] + ("..." if len(p.abstract) > 250 else "")
+                                            st.caption(abs_preview)
+                                        st.markdown("---")
+                                if len(papers) > 10:
+                                    st.caption(f"... 还有 {len(papers) - 10} 篇，可在生成报告中查看完整列表")
+                            else:
+                                st.session_state["_lit_preview_papers"] = []
+                                lit_status.update(
+                                    label="⚠️ 未找到相关文献",
                                     state="error",
                                 )
-                                st.markdown(get_literature_error_message(str(e)))
+                                st.markdown(get_literature_empty_message(literature_keywords))
+                        except Exception as e:
+                            lit_status.update(
+                                label="⚠️ 文献检索失败",
+                                state="error",
+                            )
+                            st.markdown(get_literature_error_message(str(e)))
 
-                # 显示上次检索的预览摘要（如果 session_state 中有）
-                cached_papers = st.session_state.get("_lit_preview_papers")
-                if cached_papers and not preview_lit_btn:
-                    st.caption(
-                        f"📋 上次检索: {len(cached_papers)} 篇论文 "
-                        f"（关键词: {st.session_state.get('_lit_preview_keywords', '')}）"
-                    )
-            else:
-                st.session_state["_lit_enabled"] = False
-                literature_config = {"enabled": False}
+            # 显示上次检索的预览摘要（如果 session_state 中有）
+            cached_papers = st.session_state.get("_lit_preview_papers")
+            if cached_papers and not preview_lit_btn:
+                st.caption(
+                    f"📋 上次检索: {len(cached_papers)} 篇论文 "
+                    f"（关键词: {st.session_state.get('_lit_preview_keywords', '')}）"
+                )
+        else:
+            st.session_state["_lit_enabled"] = False
+            literature_config = {"enabled": False}
 
-            # ---- 研究背景材料（可选）----
-            background_config: dict = {"enabled": False}  # 默认值
-            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-            st.markdown("#### 🌐 研究背景材料（可选）")
-            st.caption(
-                "加载结构化调研数据（政策文件、行业报告、背景研究），"
-                "为报告的「研究背景」章节注入真实语境。适用于学术论文和政务决策报告。"
-            )
+        # ---- 研究背景材料（可选）----
+        background_config: dict = {"enabled": False}  # 默认值
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.markdown("#### 🌐 研究背景材料（可选）")
+        st.caption(
+            "加载结构化调研数据（政策文件、行业报告、背景研究），"
+            "为报告的「研究背景」章节注入真实语境。适用于学术论文和政务决策报告。"
+        )
 
-            # 列出可用的背景调研目录（缓存避免每次重运行时扫描文件系统）
-            @st.cache_data(ttl=300)
-            def _cached_background_sources():
-                return list_background_sources(".")
+        # 列出可用的背景调研目录（缓存避免每次重运行时扫描文件系统）
+        @st.cache_data(ttl=300)
+        def _cached_background_sources():
+            return list_background_sources(".")
 
-            try:
-                available_sources = _cached_background_sources()
-            except Exception:
-                available_sources = []
+        try:
+            available_sources = _cached_background_sources()
+        except Exception:
+            available_sources = []
 
-            enable_background = st.checkbox(
-                "启用研究背景注入",
-                value=st.session_state.get("_bg_enabled", False),
-                key="ai_enable_background",
-                help=(
-                    "启用后，系统将读取指定目录中的结构化调研 JSON 文件，"
-                    "提取背景材料并注入到报告的「研究背景与问题提出」章节。"
-                    "\n\n背景材料可通过 `/research-deep` 命令生成，也可手动编写。"
-                    "示例数据位于 `background/example/` 目录。"
-                ),
-            )
+        enable_background = st.checkbox(
+            "启用研究背景注入",
+            value=st.session_state.get("_bg_enabled", False),
+            key="ai_enable_background",
+            help=(
+                "启用后，系统将读取指定目录中的结构化调研 JSON 文件，"
+                "提取背景材料并注入到报告的「研究背景与问题提出」章节。"
+                "\n\n背景材料可通过 `/research-deep` 命令生成，也可手动编写。"
+                "示例数据位于 `background/example/` 目录。"
+            ),
+        )
 
-            if enable_background:
-                st.session_state["_bg_enabled"] = True
-                if available_sources:
-                    bg_options = ["[手动输入路径]"] + [
-                        f"{s['name']} ({s['json_count']} JSON, {s['size_kb']}KB)"
-                        for s in available_sources
-                    ]
-                    bg_choice = st.selectbox(
-                        "选择背景调研项目",
-                        bg_options,
-                        key="ai_background_select",
-                        help="自动扫描的工作目录下的 background/ 或 research/ 子目录。",
-                    )
-                    if "手动输入" in bg_choice:
-                        bg_source_path = st.text_input(
-                            "背景材料路径",
-                            value=st.session_state.get("_bg_path", "background/example"),
-                            key="ai_background_path",
-                            placeholder="输入目录路径（如 background/example）或 JSON/Markdown 文件路径",
-                        )
-                    else:
-                        bg_name = bg_choice.split(" (")[0]
-                        bg_source_path = f"background/{bg_name}" if not bg_name.startswith("background") else bg_name
-                        st.info(f"📂 将读取: {bg_source_path}")
-                else:
+        if enable_background:
+            st.session_state["_bg_enabled"] = True
+            if available_sources:
+                bg_options = ["[手动输入路径]"] + [
+                    f"{s['name']} ({s['json_count']} JSON, {s['size_kb']}KB)"
+                    for s in available_sources
+                ]
+                bg_choice = st.selectbox(
+                    "选择背景调研项目",
+                    bg_options,
+                    key="ai_background_select",
+                    help="自动扫描的工作目录下的 background/ 或 research/ 子目录。",
+                )
+                if "手动输入" in bg_choice:
                     bg_source_path = st.text_input(
                         "背景材料路径",
                         value=st.session_state.get("_bg_path", "background/example"),
                         key="ai_background_path",
-                        placeholder="输入目录路径（如 background/example）或 JSON/MD 文件路径",
-                        help="可指向 /research-deep 产出的 results/ 目录，或手写的 Markdown 文件。",
+                        placeholder="输入目录路径（如 background/example）或 JSON/Markdown 文件路径",
                     )
+                else:
+                    bg_name = bg_choice.split(" (")[0]
+                    bg_source_path = f"background/{bg_name}" if not bg_name.startswith("background") else bg_name
+                    st.info(f"📂 将读取: {bg_source_path}")
+            else:
+                bg_source_path = st.text_input(
+                    "背景材料路径",
+                    value=st.session_state.get("_bg_path", "background/example"),
+                    key="ai_background_path",
+                    placeholder="输入目录路径（如 background/example）或 JSON/MD 文件路径",
+                    help="可指向 /research-deep 产出的 results/ 目录，或手写的 Markdown 文件。",
+                )
 
-                st.session_state["_bg_path"] = bg_source_path
-                background_config = {
-                    "enabled": True,
-                    "source_path": bg_source_path,
-                }
+            st.session_state["_bg_path"] = bg_source_path
+            background_config = {
+                "enabled": True,
+                "source_path": bg_source_path,
+            }
 
-                if bg_source_path and Path(bg_source_path).exists():
-                    st.success(f"✅ 路径有效: {bg_source_path}")
+            if bg_source_path and Path(bg_source_path).exists():
+                st.success(f"✅ 路径有效: {bg_source_path}")
 
-                    # ── 背景材料预览 ──
-                    bg_prev_col1, bg_prev_col2 = st.columns([1, 3])
-                    with bg_prev_col1:
-                        preview_bg_btn = st.button(
-                            "📂 预览背景材料",
-                            key="preview_background_btn",
-                            help="加载并预览背景材料内容（不生成报告）。",
-                        )
-                    with bg_prev_col2:
-                        bg_preview_placeholder = st.empty()
+                # ── 背景材料预览 ──
+                bg_prev_col1, bg_prev_col2 = st.columns([1, 3])
+                with bg_prev_col1:
+                    preview_bg_btn = st.button(
+                        "📂 预览背景材料",
+                        key="preview_background_btn",
+                        help="加载并预览背景材料内容（不生成报告）。",
+                    )
+                with bg_prev_col2:
+                    bg_preview_placeholder = st.empty()
 
-                    if preview_bg_btn:
-                        with bg_preview_placeholder.status(
-                            f"正在加载背景材料: {bg_source_path}...", expanded=True
-                        ) as bg_status:
-                            try:
-                                ctx = build_background_context(bg_source_path)
-                                if ctx:
-                                    st.session_state["_bg_preview_text"] = ctx
-                                    st.session_state["_bg_preview_path"] = bg_source_path
-                                    bg_status.update(
-                                        label=f"✅ 加载完成：{len(ctx)} 字符",
-                                        state="complete",
-                                    )
-                                    with st.expander("📄 背景材料预览", expanded=True):
-                                        st.markdown(ctx)
-                                else:
-                                    st.session_state["_bg_preview_text"] = ""
-                                    bg_status.update(
-                                        label="⚠️ 未能从该路径提取有效内容",
-                                        state="error",
-                                    )
-                            except Exception as e:
+                if preview_bg_btn:
+                    with bg_preview_placeholder.status(
+                        f"正在加载背景材料: {bg_source_path}...", expanded=True
+                    ) as bg_status:
+                        try:
+                            ctx = build_background_context(bg_source_path)
+                            if ctx:
+                                st.session_state["_bg_preview_text"] = ctx
+                                st.session_state["_bg_preview_path"] = bg_source_path
                                 bg_status.update(
-                                    label=f"❌ 加载失败: {e}",
+                                    label=f"✅ 加载完成：{len(ctx)} 字符",
+                                    state="complete",
+                                )
+                                with st.expander("📄 背景材料预览", expanded=True):
+                                    st.markdown(ctx)
+                            else:
+                                st.session_state["_bg_preview_text"] = ""
+                                bg_status.update(
+                                    label="⚠️ 未能从该路径提取有效内容",
                                     state="error",
                                 )
+                        except Exception as e:
+                            bg_status.update(
+                                label=f"❌ 加载失败: {e}",
+                                state="error",
+                            )
 
-                    # 显示上次加载的预览摘要
-                    cached_bg = st.session_state.get("_bg_preview_text")
-                    if cached_bg and not preview_bg_btn:
-                        st.caption(
-                            f"📋 上次加载: {len(cached_bg)} 字符 "
-                            f"（路径: {st.session_state.get('_bg_preview_path', '')}）"
-                        )
-                elif bg_source_path:
-                    st.warning(f"⚠️ 路径不存在: {bg_source_path}")
-            else:
-                st.session_state["_bg_enabled"] = False
-                background_config = {"enabled": False}
+                # 显示上次加载的预览摘要
+                cached_bg = st.session_state.get("_bg_preview_text")
+                if cached_bg and not preview_bg_btn:
+                    st.caption(
+                        f"📋 上次加载: {len(cached_bg)} 字符 "
+                        f"（路径: {st.session_state.get('_bg_preview_path', '')}）"
+                    )
+            elif bg_source_path:
+                st.warning(f"⚠️ 路径不存在: {bg_source_path}")
+        else:
+            st.session_state["_bg_enabled"] = False
+            background_config = {"enabled": False}
 
-            # ---- 测试连接 ----
-            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-            st.markdown("#### 6. 测试连接")
-            tc1, tc2 = st.columns([1, 3])
-            with tc1:
-                test_btn = st.button("🔌 测试连接", key="ai_test_connection")
-            with tc2:
-                test_placeholder = st.empty()
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
-            if test_btn:
-                if not resolved_api_key:
-                    test_placeholder.error("❌ 请先输入 API Key。")
-                elif not selected_model:
-                    test_placeholder.error("❌ 请先输入模型名。")
-                else:
-                    with st.spinner("正在测试连接…"):
-                        test_result = test_connection(
-                            provider_config=provider_config,
-                            api_key=resolved_api_key,
-                            model=selected_model,
-                            provider_key=provider_key,
-                            chat_path=custom_chat_path if provider_key == "custom_openai" else "/chat/completions",
-                        )
-                    if test_result.get("success"):
-                        usage = test_result.get("usage", {})
-                        test_placeholder.success(
-                            f"✅ 连接成功！模型 `{selected_model}` 响应正常。"
-                            f"（Token: {usage.get('total_tokens', 'N/A')}）"
-                        )
-                    else:
-                        # 脱敏处理：不要原样显示 API Key
-                        error_msg = test_result.get('error', '未知错误')
-                        if resolved_api_key and len(resolved_api_key) > 8:
-                            masked_key = resolved_api_key[:4] + "****" + resolved_api_key[-4:]
-                            error_msg = error_msg.replace(resolved_api_key, masked_key)
-                        # 使用用户友好的错误分类
-                        friendly = format_user_friendly_error(error_msg, context="连接测试")
-                        test_placeholder.error(friendly)
-                        with st.expander("🔍 技术详情"):
-                            st.code(error_msg)
+        # ---- 隐私与变量使用设置 ----
+        st.markdown("#### 7. 🔒 隐私与变量使用设置")
+        st.caption(
+            "系统已自动评估每个变量的隐私风险。"
+            "您可以逐列调整变量的使用方式和 AI 发送策略。"
+        )
 
-            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        # 筛选有隐私风险的变量（medium 和 high）
+        if "privacy_risk" in schema_df.columns:
+            privacy_vars = schema_df[
+                schema_df["privacy_risk"].isin(["medium", "high"])
+            ]
+            high_risk_vars = schema_df[
+                schema_df["privacy_risk"] == "high"
+            ]
+            medium_risk_vars = schema_df[
+                schema_df["privacy_risk"] == "medium"
+            ]
+        else:
+            privacy_vars = pd.DataFrame()
+            high_risk_vars = pd.DataFrame()
+            medium_risk_vars = pd.DataFrame()
 
-            # ---- 隐私与变量使用设置 ----
-            st.markdown("#### 7. 🔒 隐私与变量使用设置")
-            st.caption(
-                "系统已自动评估每个变量的隐私风险。"
-                "您可以逐列调整变量的使用方式和 AI 发送策略。"
+        # ── 隐私风险汇总提醒 ──
+        _high_count = len(high_risk_vars)
+        _med_count = len(medium_risk_vars)
+        if _high_count > 0 or _med_count > 0:
+            st.warning(get_privacy_warning_message(_high_count, _med_count))
+
+        if privacy_vars.empty:
+            st.success(
+                "✅ 所有变量的隐私风险均为低或无级别，"
+                "默认以聚合统计形式纳入 AI 报告，无需额外设置。"
+            )
+        else:
+            st.info(
+                f"检测到 {len(privacy_vars)} 个变量存在中高隐私风险。"
+                "默认情况下，高风险变量仅用于本地统计，不发送给 AI。"
+                "您可以根据实际研究需要调整以下设置。"
             )
 
-            # 筛选有隐私风险的变量（medium 和 high）
-            if "privacy_risk" in schema_df.columns:
-                privacy_vars = schema_df[
-                    schema_df["privacy_risk"].isin(["medium", "high"])
-                ]
-                high_risk_vars = schema_df[
-                    schema_df["privacy_risk"] == "high"
-                ]
-                medium_risk_vars = schema_df[
-                    schema_df["privacy_risk"] == "medium"
-                ]
-            else:
-                privacy_vars = pd.DataFrame()
-                high_risk_vars = pd.DataFrame()
-                medium_risk_vars = pd.DataFrame()
+            for _, prow in privacy_vars.iterrows():
+                col = prow["column"]
+                risk = prow.get("privacy_risk", "medium")
+                cat = prow.get("privacy_category", "unknown")
+                cn_name = prow.get("display_name", "") or col
+                vtype = prow.get("inferred_type", "")
 
-            # ── 隐私风险汇总提醒 ──
-            _high_count = len(high_risk_vars)
-            _med_count = len(medium_risk_vars)
-            if _high_count > 0 or _med_count > 0:
-                st.warning(get_privacy_warning_message(_high_count, _med_count))
+                risk_emoji = {"medium": "🟡", "high": "🔴"}.get(risk, "⚪")
+                cat_labels = {
+                    "demographic_attribute": "人口统计属性",
+                    "contact_info": "联系方式",
+                    "direct_identifier": "直接身份标识",
+                    "location_info": "地理位置",
+                    "free_text": "自由文本",
+                    "sensitive_attribute": "敏感属性",
+                    "financial": "金融信息",
+                    "unknown": "未知",
+                }
+                cat_cn = cat_labels.get(cat, cat)
 
-            if privacy_vars.empty:
-                st.success(
-                    "✅ 所有变量的隐私风险均为低或无级别，"
-                    "默认以聚合统计形式纳入 AI 报告，无需额外设置。"
-                )
-            else:
-                st.info(
-                    f"检测到 {len(privacy_vars)} 个变量存在中高隐私风险。"
-                    "默认情况下，高风险变量仅用于本地统计，不发送给 AI。"
-                    "您可以根据实际研究需要调整以下设置。"
-                )
+                with st.expander(
+                    f"{risk_emoji} {cn_name} (`{col}`) — {risk.upper()} 风险 · {cat_cn} · 类型: {vtype}",
+                    expanded=(risk == "high"),
+                ):
+                    # 隐私类别说明
+                    cat_explanation = get_sensitive_field_data_explanation(cat)
+                    if cat_explanation:
+                        st.caption(cat_explanation)
 
-                for _, prow in privacy_vars.iterrows():
-                    col = prow["column"]
-                    risk = prow.get("privacy_risk", "medium")
-                    cat = prow.get("privacy_category", "unknown")
-                    cn_name = prow.get("display_name", "") or col
-                    vtype = prow.get("inferred_type", "")
+                    # 当前设置
+                    allow_stats = prow.get("allow_local_stats", True)
+                    allow_group = prow.get("allow_as_group_variable", risk != "high")
+                    allow_model = prow.get("allow_in_model", risk != "high")
+                    allow_ai = prow.get("allow_send_to_ai", risk != "high")
+                    send_mode = prow.get("send_to_ai_mode", "aggregate_only" if risk != "high" else "exclude")
 
-                    risk_emoji = {"medium": "🟡", "high": "🔴"}.get(risk, "⚪")
-                    cat_labels = {
-                        "demographic_attribute": "人口统计属性",
-                        "contact_info": "联系方式",
-                        "direct_identifier": "直接身份标识",
-                        "location_info": "地理位置",
-                        "free_text": "自由文本",
-                        "sensitive_attribute": "敏感属性",
-                        "financial": "金融信息",
-                        "unknown": "未知",
+                    col1, col2, col3, col4 = st.columns(4)
+                    new_allow_stats = col1.checkbox(
+                        "📊 本地统计",
+                        value=bool(allow_stats),
+                        key=f"priv_stats_{col}",
+                        help="允许对此变量进行缺失值、唯一值、类型判断等本地统计。",
+                    )
+                    new_allow_group = col2.checkbox(
+                        "🔀 分组变量",
+                        value=bool(allow_group),
+                        key=f"priv_group_{col}",
+                        help="允许将此变量作为分组变量用于交叉分析。",
+                    )
+                    new_allow_model = col3.checkbox(
+                        "📈 进入模型",
+                        value=bool(allow_model),
+                        key=f"priv_model_{col}",
+                        help="允许将此变量纳入相关分析和回归模型。",
+                    )
+                    new_allow_ai = col4.checkbox(
+                        "🤖 发送 AI",
+                        value=bool(allow_ai),
+                        key=f"priv_ai_{col}",
+                        help="允许将此变量的统计结果发送给 AI 模型。",
+                    )
+
+                    # AI 发送方式
+                    send_options = ["exclude", "aggregate_only", "masked_examples", "full"]
+                    send_labels = {
+                        "exclude": "不发送（仅本地统计）",
+                        "aggregate_only": "仅发送聚合统计",
+                        "masked_examples": "发送脱敏样例",
+                        "full": "完整发送（需确认）",
                     }
-                    cat_cn = cat_labels.get(cat, cat)
+                    current_idx = send_options.index(send_mode) if send_mode in send_options else 1
+                    new_send_mode = st.selectbox(
+                        "AI 发送方式",
+                        send_options,
+                        index=current_idx,
+                        key=f"priv_sendmode_{col}",
+                        format_func=lambda x: send_labels.get(x, x),
+                        help="控制此变量的哪些信息可以进入 AI 报告的 payload。",
+                    )
 
-                    with st.expander(
-                        f"{risk_emoji} {cn_name} (`{col}`) — {risk.upper()} 风险 · {cat_cn} · 类型: {vtype}",
-                        expanded=(risk == "high"),
-                    ):
-                        # 隐私类别说明
-                        cat_explanation = get_sensitive_field_data_explanation(cat)
-                        if cat_explanation:
-                            st.caption(cat_explanation)
-
-                        # 当前设置
-                        allow_stats = prow.get("allow_local_stats", True)
-                        allow_group = prow.get("allow_as_group_variable", risk != "high")
-                        allow_model = prow.get("allow_in_model", risk != "high")
-                        allow_ai = prow.get("allow_send_to_ai", risk != "high")
-                        send_mode = prow.get("send_to_ai_mode", "aggregate_only" if risk != "high" else "exclude")
-
-                        col1, col2, col3, col4 = st.columns(4)
-                        new_allow_stats = col1.checkbox(
-                            "📊 本地统计",
-                            value=bool(allow_stats),
-                            key=f"priv_stats_{col}",
-                            help="允许对此变量进行缺失值、唯一值、类型判断等本地统计。",
+                    # 完整发送的二次确认
+                    if new_send_mode == "full":
+                        st.warning(
+                            f"⚠️ **该变量可能包含个人身份信息或敏感内容。**\n\n"
+                            f"变量「{cn_name}」被识别为 **{cat_cn}** 类信息。"
+                            f"完整发送给 AI 服务商可能存在隐私风险，"
+                            f"请确认数据已经脱敏或你有权进行该操作。"
                         )
-                        new_allow_group = col2.checkbox(
-                            "🔀 分组变量",
-                            value=bool(allow_group),
-                            key=f"priv_group_{col}",
-                            help="允许将此变量作为分组变量用于交叉分析。",
+                        confirm_full = st.checkbox(
+                            f"我确认「{cn_name}」的数据已脱敏，允许完整发送给 AI。",
+                            key=f"priv_confirm_full_{col}",
                         )
-                        new_allow_model = col3.checkbox(
-                            "📈 进入模型",
-                            value=bool(allow_model),
-                            key=f"priv_model_{col}",
-                            help="允许将此变量纳入相关分析和回归模型。",
-                        )
-                        new_allow_ai = col4.checkbox(
-                            "🤖 发送 AI",
-                            value=bool(allow_ai),
-                            key=f"priv_ai_{col}",
-                            help="允许将此变量的统计结果发送给 AI 模型。",
-                        )
+                        if not confirm_full:
+                            new_send_mode = send_mode  # 回退到之前的设置
+                            st.caption("⚠️ 未确认，将使用之前的发送方式。")
 
-                        # AI 发送方式
-                        send_options = ["exclude", "aggregate_only", "masked_examples", "full"]
-                        send_labels = {
-                            "exclude": "不发送（仅本地统计）",
-                            "aggregate_only": "仅发送聚合统计",
-                            "masked_examples": "发送脱敏样例",
-                            "full": "完整发送（需确认）",
-                        }
-                        current_idx = send_options.index(send_mode) if send_mode in send_options else 1
-                        new_send_mode = st.selectbox(
-                            "AI 发送方式",
-                            send_options,
-                            index=current_idx,
-                            key=f"priv_sendmode_{col}",
-                            format_func=lambda x: send_labels.get(x, x),
-                            help="控制此变量的哪些信息可以进入 AI 报告的 payload。",
-                        )
-
-                        # 完整发送的二次确认
-                        if new_send_mode == "full":
-                            st.warning(
-                                f"⚠️ **该变量可能包含个人身份信息或敏感内容。**\n\n"
-                                f"变量「{cn_name}」被识别为 **{cat_cn}** 类信息。"
-                                f"完整发送给 AI 服务商可能存在隐私风险，"
-                                f"请确认数据已经脱敏或你有权进行该操作。"
-                            )
-                            confirm_full = st.checkbox(
-                                f"我确认「{cn_name}」的数据已脱敏，允许完整发送给 AI。",
-                                key=f"priv_confirm_full_{col}",
-                            )
-                            if not confirm_full:
-                                new_send_mode = send_mode  # 回退到之前的设置
-                                st.caption("⚠️ 未确认，将使用之前的发送方式。")
-
-                        # 应用按钮
-                        if st.button("💾 应用设置", key=f"priv_apply_{col}"):
-                            mask = schema_df["column"] == col
-                            schema_df.loc[mask, "allow_local_stats"] = new_allow_stats
-                            schema_df.loc[mask, "allow_as_group_variable"] = new_allow_group
-                            schema_df.loc[mask, "allow_in_model"] = new_allow_model
-                            schema_df.loc[mask, "allow_send_to_ai"] = new_allow_ai
-                            schema_df.loc[mask, "send_to_ai_mode"] = new_send_mode
-                            schema_df.loc[mask, "user_confirmed_privacy"] = True
-                            st.success(f"✅ 变量「{cn_name}」的隐私设置已更新。")
-                            st.rerun()
-
-                # 批量操作
-                st.markdown("---")
-                st.caption("💡 **批量操作提示**：如需将所有变量恢复为系统默认设置，请点击下方按钮。")
-                if st.button("🔄 恢复所有隐私设置为默认值", key="priv_reset_all"):
-                    for col in privacy_vars["column"]:
+                    # 应用按钮
+                    if st.button("💾 应用设置", key=f"priv_apply_{col}"):
                         mask = schema_df["column"] == col
-                        if "privacy_risk" in schema_df.columns:
-                            # 重新调用 schema_infer 的隐私评估来获取默认值
-                            series = raw_df[col] if col in raw_df.columns else None
-                            vtype = schema_df.loc[mask, "inferred_type"].values[0] if mask.any() else "text"
-                            if series is not None:
-                                defaults = _assess_privacy_risk(col, series, vtype)
-                                schema_df.loc[mask, "allow_local_stats"] = defaults["allow_local_stats"]
-                                schema_df.loc[mask, "allow_as_group_variable"] = defaults["allow_as_group_variable"]
-                                schema_df.loc[mask, "allow_in_model"] = defaults["allow_in_model"]
-                                schema_df.loc[mask, "allow_send_to_ai"] = defaults["allow_send_to_ai"]
-                                schema_df.loc[mask, "send_to_ai_mode"] = defaults["send_to_ai_mode"]
-                                schema_df.loc[mask, "user_confirmed_privacy"] = False
-                    st.success("✅ 所有隐私设置已恢复为默认值。")
-                    st.rerun()
+                        schema_df.loc[mask, "allow_local_stats"] = new_allow_stats
+                        schema_df.loc[mask, "allow_as_group_variable"] = new_allow_group
+                        schema_df.loc[mask, "allow_in_model"] = new_allow_model
+                        schema_df.loc[mask, "allow_send_to_ai"] = new_allow_ai
+                        schema_df.loc[mask, "send_to_ai_mode"] = new_send_mode
+                        schema_df.loc[mask, "user_confirmed_privacy"] = True
+                        st.success(f"✅ 变量「{cn_name}」的隐私设置已更新。")
+                        st.rerun()
 
-            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+            # 批量操作
+            st.markdown("---")
+            st.caption("💡 **批量操作提示**：如需将所有变量恢复为系统默认设置，请点击下方按钮。")
+            if st.button("🔄 恢复所有隐私设置为默认值", key="priv_reset_all"):
+                for col in privacy_vars["column"]:
+                    mask = schema_df["column"] == col
+                    if "privacy_risk" in schema_df.columns:
+                        # 重新调用 schema_infer 的隐私评估来获取默认值
+                        series = raw_df[col] if col in raw_df.columns else None
+                        vtype = schema_df.loc[mask, "inferred_type"].values[0] if mask.any() else "text"
+                        if series is not None:
+                            defaults = _assess_privacy_risk(col, series, vtype)
+                            schema_df.loc[mask, "allow_local_stats"] = defaults["allow_local_stats"]
+                            schema_df.loc[mask, "allow_as_group_variable"] = defaults["allow_as_group_variable"]
+                            schema_df.loc[mask, "allow_in_model"] = defaults["allow_in_model"]
+                            schema_df.loc[mask, "allow_send_to_ai"] = defaults["allow_send_to_ai"]
+                            schema_df.loc[mask, "send_to_ai_mode"] = defaults["send_to_ai_mode"]
+                            schema_df.loc[mask, "user_confirmed_privacy"] = False
+                st.success("✅ 所有隐私设置已恢复为默认值。")
+                st.rerun()
 
-            # ---- 生成 Analysis Payload ----
-            st.markdown("#### 8. 生成 Analysis Payload")
-            st.caption("将统计分析结果打包为结构化 JSON，供 AI 模型使用。不包含原始数据。")
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
-            target = config.get("target_variable", "")
+        # ---- 生成 Analysis Payload ----
+        st.markdown("#### 8. 生成 Analysis Payload")
+        st.caption("将统计分析结果打包为结构化 JSON，供 AI 模型使用。不包含原始数据。")
 
-            payload_col1, payload_col2 = st.columns([1, 3])
-            with payload_col1:
-                gen_payload_btn = st.button(
-                    "📦 生成 Payload",
-                    key="gen_payload_btn",
-                    help="运行分析并打包为 JSON",
+        target = config.get("target_variable", "")
+
+        payload_col1, payload_col2 = st.columns([1, 3])
+        with payload_col1:
+            gen_payload_btn = st.button(
+                "📦 生成 Payload",
+                key="gen_payload_btn",
+                help="运行分析并打包为 JSON",
+            )
+        with payload_col2:
+            payload_placeholder = st.empty()
+
+        if gen_payload_btn:
+            with st.spinner("正在运行完整分析并生成 Payload…"):
+                try:
+                    # 运行分析
+                    _analysis = run_full_analysis(
+                        raw_df, schema_df, config, var_dict=generic_var_dict_map,
+                    )
+
+                    # 生成图表摘要
+                    _dashboard = generate_dashboard_charts(raw_df, schema_df, config)
+                    _chart_summaries = _build_chart_summaries(_dashboard)
+
+                    # 确定文件类型
+                    _file_type = "csv" if generic_file_name.endswith(".csv") else "xlsx"
+
+                    # 构建 payload
+                    _payload = build_analysis_payload(
+                        df=raw_df,
+                        schema_df=schema_df,
+                        config=config,
+                        analysis_results=_analysis,
+                        quality=quality,
+                        chart_summaries=_chart_summaries,
+                        selected_sheet=selected_sheet or "",
+                        file_type=_file_type,
+                    )
+
+                    # 存储到 session_state
+                    st.session_state["ai_analysis_payload"] = _payload
+                    st.session_state["ai_analysis_results"] = _analysis
+
+                    # 摘要信息（从新 analysis_results 列表统计）
+                    _json_str = to_json_payload(_payload)
+                    _payload_size = len(_json_str.encode("utf-8"))
+                    _warn_count = len(_payload.get("warnings", []))
+                    _all_results = _payload.get("analysis_results", [])
+                    _uv_count = sum(1 for r in _all_results if r.get("analysis_type") in ("categorical_frequency", "numeric_descriptive", "text_summary"))
+                    _bv_groups = sum(1 for r in _all_results if r.get("analysis_type") in ("categorical_categorical_chi_square", "categorical_numeric_group_compare"))
+                    _bv_corrs = sum(1 for r in _all_results if r.get("analysis_type") == "numeric_numeric_correlation")
+                    _has_mv = any(r.get("analysis_type") == "linear_regression" for r in _all_results)
+                    _plan_total = len(_payload.get("analysis_plan", []))
+                    _truncated = _payload.get("_truncated", False)
+
+                    payload_placeholder.success(
+                        f"✅ Payload 生成完成 · "
+                        f"{_plan_total} 项分析计划 · "
+                        f"{_uv_count} 个单变量 · "
+                        f"{_bv_groups} 组比较 · "
+                        f"{_bv_corrs} 对相关 · "
+                        f"回归: {'有' if _has_mv else '无'} · "
+                        f"{_warn_count} 条警告 · "
+                        f"{_payload_size / 1024:.1f} KB"
+                        + (" · ⚠️ 已截断" if _truncated else "")
+                    )
+
+                except Exception as e:
+                    payload_placeholder.error(f"❌ Payload 生成失败：{e}")
+                    with st.expander("🔍 错误详情"):
+                        st.code(traceback.format_exc())
+
+        # 如果已有 payload，显示预览和下载
+        if "ai_analysis_payload" in st.session_state and st.session_state["ai_analysis_payload"]:
+            _payload = st.session_state["ai_analysis_payload"]
+
+            with st.expander("📋 Payload 摘要", expanded=False):
+                _pw = _payload.get("warnings", [])
+                _all_results = _payload.get("analysis_results", [])
+                _reg = next((r for r in _all_results if r.get("analysis_type") == "linear_regression"), None)
+                _reg_r2 = (_reg.get("result") or {}).get("r_squared", "N/A") if _reg else "N/A"
+                _plan = _payload.get("analysis_plan", [])
+                _plan_completed = sum(1 for p in _plan if p.get("status") == "completed")
+                _plan_skipped = sum(1 for p in _plan if p.get("status") == "skipped")
+
+                st.markdown(f"""
+                | 项目 | 值 |
+                |------|-----|
+                | 报告标题 | {_payload.get('project_meta', {}).get('report_title', '')} |
+                | 样本量 | {_payload.get('data_overview', {}).get('row_count', '')} |
+                | 变量数 | {_payload.get('data_overview', {}).get('column_count', '')} |
+                | 目标变量 | {_payload.get('user_analysis_config', {}).get('target_variable', '')} |
+                | 分组变量 | {', '.join(_payload.get('user_analysis_config', {}).get('group_variables', []))} |
+                | 解释变量 | {', '.join(_payload.get('user_analysis_config', {}).get('explanatory_variables', []))} |
+                | 排除的 ID 变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_id_variables', []))} |
+                | 排除的文本变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_text_variables', []))} |
+                | 排除的敏感变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_sensitive_variables', []))} |
+                | 分析计划 | {len(_plan)} 项（{_plan_completed} 完成 / {_plan_skipped} 跳过） |
+                | 分析结果 | {len(_all_results)} 条 |
+                | R² | {_reg_r2} |
+                | 警告数 | {len(_pw)} |
+                """)
+
+                if _pw:
+                    st.markdown("**⚠️ 警告列表：**")
+                    for w in _pw[:10]:
+                        st.caption(f"· {w}")
+
+            with st.expander("🔍 查看完整 JSON", expanded=False):
+                _json_str = to_json_payload(_payload)
+                st.code(_json_str[:50000], language="json")
+                if len(_json_str) > 50000:
+                    st.caption(f"… JSON 过大（{len(_json_str):,} 字符），仅显示前 50,000 字符。")
+
+            # 下载按钮
+            _json_full = to_json_payload(_payload)
+            safe_title = config.get("report_title", "payload").replace(" ", "_")
+            st.download_button(
+                "📥 下载 analysis_payload.json",
+                data=_json_full,
+                file_name=f"analysis_payload_{safe_title}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.json",
+                mime="application/json",
+                key="dl_payload",
+            )
+
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+
+        # ---- 生成报告 ----
+        st.markdown("#### 9. 生成 AI 报告")
+
+        target = config.get("target_variable", "")
+        has_payload = "ai_analysis_payload" in st.session_state
+        has_analysis = "ai_analysis_results" in st.session_state
+
+        # ── 生成前检查 ──
+        precheck_ok = True
+        precheck_msgs = []
+
+        if not resolved_api_key:
+            precheck_msgs.append("❌ 未配置 API Key。请在上方「2. API Key」中填写。\n\n" + get_no_api_key_short_message())
+            precheck_ok = False
+        if not selected_model:
+            precheck_msgs.append("❌ 未选择模型（见上方「3. 模型选择」）。")
+            precheck_ok = False
+        if not has_payload and not has_analysis:
+            precheck_msgs.append("💡 建议先在「8. 生成 Analysis Payload」中生成分析结果。也可直接点击下方按钮（将自动运行分析）。")
+        if not target:
+            precheck_msgs.append("💡 未指定核心结果变量（target_variable），将生成探索性分析报告。")
+        if report_structure == "学术论文式报告":
+            # 检查 payload 中是否有回归和显著性结果
+            if has_payload:
+                _pre_payload = st.session_state["ai_analysis_payload"]
+                _pre_has_reg = any(
+                    r.get("analysis_type") == "linear_regression"
+                    for r in _pre_payload.get("analysis_results", [])
                 )
-            with payload_col2:
-                payload_placeholder = st.empty()
+                _pre_has_sig = any(
+                    r.get("p_value") is not None
+                    for r in _pre_payload.get("analysis_results", [])
+                )
+                if not _pre_has_reg or not _pre_has_sig:
+                    precheck_msgs.append(
+                        "💡 当前数据仍可生成论文式分析报告，但实证结果部分将以已有描述统计和探索性分析为主。"
+                    )
+        if literature_config.get("enabled") and not is_structure_supports_literature(report_structure):
+            precheck_msgs.append(
+                "💡 已启用文献综述检索，但仅在「学术论文式报告」结构下生效。"
+                "请将报告结构切换为「学术论文式报告」以启用文献综述。"
+            )
+        if literature_config.get("enabled") and not literature_config.get("keywords", "").strip():
+            precheck_msgs.append(
+                "💡 已启用文献综述检索但未输入研究关键词，将跳过文献检索。"
+            )
 
-            if gen_payload_btn:
-                with st.spinner("正在运行完整分析并生成 Payload…"):
-                    try:
-                        # 运行分析
-                        _analysis = run_full_analysis(
+        if not precheck_ok:
+            for msg in precheck_msgs:
+                if msg.startswith("❌"):
+                    st.error(msg)
+                elif msg.startswith("💡"):
+                    st.info(msg)
+        else:
+            for msg in precheck_msgs:
+                st.info(msg)
+
+            # ── 生成前隐私变量确认 ──
+            privacy_summary = summarize_ai_variable_privacy(schema_df)
+            privacy_msg = get_ai_privacy_summary_message(privacy_summary)
+            if privacy_summary.get("has_high_risk_sent"):
+                st.warning(privacy_msg)
+            else:
+                st.success(privacy_msg)
+
+            if st.button("🤖 生成 AI 分析报告", type="primary", key="gen_ai_report_btn"):
+                with st.spinner("正在生成 AI 分析报告…"):
+                    if has_analysis:
+                        analysis_results = st.session_state["ai_analysis_results"]
+                    else:
+                        analysis_results = run_full_analysis(
                             raw_df, schema_df, config, var_dict=generic_var_dict_map,
                         )
 
-                        # 生成图表摘要
-                        _dashboard = generate_dashboard_charts(raw_df, schema_df, config)
-                        _chart_summaries = _build_chart_summaries(_dashboard)
-
-                        # 确定文件类型
-                        _file_type = "csv" if generic_file_name.endswith(".csv") else "xlsx"
-
-                        # 构建 payload
-                        _payload = build_analysis_payload(
-                            df=raw_df,
-                            schema_df=schema_df,
-                            config=config,
-                            analysis_results=_analysis,
-                            quality=quality,
-                            chart_summaries=_chart_summaries,
-                            selected_sheet=selected_sheet or "",
-                            file_type=_file_type,
-                        )
-
-                        # 存储到 session_state
-                        st.session_state["ai_analysis_payload"] = _payload
-                        st.session_state["ai_analysis_results"] = _analysis
-
-                        # 摘要信息（从新 analysis_results 列表统计）
-                        _json_str = to_json_payload(_payload)
-                        _payload_size = len(_json_str.encode("utf-8"))
-                        _warn_count = len(_payload.get("warnings", []))
-                        _all_results = _payload.get("analysis_results", [])
-                        _uv_count = sum(1 for r in _all_results if r.get("analysis_type") in ("categorical_frequency", "numeric_descriptive", "text_summary"))
-                        _bv_groups = sum(1 for r in _all_results if r.get("analysis_type") in ("categorical_categorical_chi_square", "categorical_numeric_group_compare"))
-                        _bv_corrs = sum(1 for r in _all_results if r.get("analysis_type") == "numeric_numeric_correlation")
-                        _has_mv = any(r.get("analysis_type") == "linear_regression" for r in _all_results)
-                        _plan_total = len(_payload.get("analysis_plan", []))
-                        _truncated = _payload.get("_truncated", False)
-
-                        payload_placeholder.success(
-                            f"✅ Payload 生成完成 · "
-                            f"{_plan_total} 项分析计划 · "
-                            f"{_uv_count} 个单变量 · "
-                            f"{_bv_groups} 组比较 · "
-                            f"{_bv_corrs} 对相关 · "
-                            f"回归: {'有' if _has_mv else '无'} · "
-                            f"{_warn_count} 条警告 · "
-                            f"{_payload_size / 1024:.1f} KB"
-                            + (" · ⚠️ 已截断" if _truncated else "")
-                        )
-
-                    except Exception as e:
-                        payload_placeholder.error(f"❌ Payload 生成失败：{e}")
-                        with st.expander("🔍 错误详情"):
-                            st.code(traceback.format_exc())
-
-            # 如果已有 payload，显示预览和下载
-            if "ai_analysis_payload" in st.session_state and st.session_state["ai_analysis_payload"]:
-                _payload = st.session_state["ai_analysis_payload"]
-
-                with st.expander("📋 Payload 摘要", expanded=False):
-                    _pw = _payload.get("warnings", [])
-                    _all_results = _payload.get("analysis_results", [])
-                    _reg = next((r for r in _all_results if r.get("analysis_type") == "linear_regression"), None)
-                    _reg_r2 = (_reg.get("result") or {}).get("r_squared", "N/A") if _reg else "N/A"
-                    _plan = _payload.get("analysis_plan", [])
-                    _plan_completed = sum(1 for p in _plan if p.get("status") == "completed")
-                    _plan_skipped = sum(1 for p in _plan if p.get("status") == "skipped")
-
-                    st.markdown(f"""
-                    | 项目 | 值 |
-                    |------|-----|
-                    | 报告标题 | {_payload.get('project_meta', {}).get('report_title', '')} |
-                    | 样本量 | {_payload.get('data_overview', {}).get('row_count', '')} |
-                    | 变量数 | {_payload.get('data_overview', {}).get('column_count', '')} |
-                    | 目标变量 | {_payload.get('user_analysis_config', {}).get('target_variable', '')} |
-                    | 分组变量 | {', '.join(_payload.get('user_analysis_config', {}).get('group_variables', []))} |
-                    | 解释变量 | {', '.join(_payload.get('user_analysis_config', {}).get('explanatory_variables', []))} |
-                    | 排除的 ID 变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_id_variables', []))} |
-                    | 排除的文本变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_text_variables', []))} |
-                    | 排除的敏感变量 | {', '.join(_payload.get('user_analysis_config', {}).get('excluded_sensitive_variables', []))} |
-                    | 分析计划 | {len(_plan)} 项（{_plan_completed} 完成 / {_plan_skipped} 跳过） |
-                    | 分析结果 | {len(_all_results)} 条 |
-                    | R² | {_reg_r2} |
-                    | 警告数 | {len(_pw)} |
-                    """)
-
-                    if _pw:
-                        st.markdown("**⚠️ 警告列表：**")
-                        for w in _pw[:10]:
-                            st.caption(f"· {w}")
-
-                with st.expander("🔍 查看完整 JSON", expanded=False):
-                    _json_str = to_json_payload(_payload)
-                    st.code(_json_str[:50000], language="json")
-                    if len(_json_str) > 50000:
-                        st.caption(f"… JSON 过大（{len(_json_str):,} 字符），仅显示前 50,000 字符。")
-
-                # 下载按钮
-                _json_full = to_json_payload(_payload)
-                safe_title = config.get("report_title", "payload").replace(" ", "_")
-                st.download_button(
-                    "📥 下载 analysis_payload.json",
-                    data=_json_full,
-                    file_name=f"analysis_payload_{safe_title}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.json",
-                    mime="application/json",
-                    key="dl_payload",
-                )
-
-            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-
-            # ---- 生成报告 ----
-            st.markdown("#### 9. 生成 AI 报告")
-
-            target = config.get("target_variable", "")
-            has_payload = "ai_analysis_payload" in st.session_state
-            has_analysis = "ai_analysis_results" in st.session_state
-
-            # ── 生成前检查 ──
-            precheck_ok = True
-            precheck_msgs = []
-
-            if not resolved_api_key:
-                precheck_msgs.append("❌ 未配置 API Key。请在上方「2. API Key」中填写。\n\n" + get_no_api_key_short_message())
-                precheck_ok = False
-            if not selected_model:
-                precheck_msgs.append("❌ 未选择模型（见上方「3. 模型选择」）。")
-                precheck_ok = False
-            if not has_payload and not has_analysis:
-                precheck_msgs.append("💡 建议先在「8. 生成 Analysis Payload」中生成分析结果。也可直接点击下方按钮（将自动运行分析）。")
-            if not target:
-                precheck_msgs.append("💡 未指定核心结果变量（target_variable），将生成探索性分析报告。")
-            if report_structure == "学术论文式报告":
-                # 检查 payload 中是否有回归和显著性结果
-                if has_payload:
-                    _pre_payload = st.session_state["ai_analysis_payload"]
-                    _pre_has_reg = any(
-                        r.get("analysis_type") == "linear_regression"
-                        for r in _pre_payload.get("analysis_results", [])
+                    ai_llm_cfg = build_llm_config_from_ui(
+                        provider_config=provider_config,
+                        api_key=resolved_api_key,
+                        model=selected_model,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        provider_key=provider_key,
+                        chat_path=st.session_state.get("custom_chat_path", "/chat/completions") if provider_key == "custom_openai" else "/chat/completions",
                     )
-                    _pre_has_sig = any(
-                        r.get("p_value") is not None
-                        for r in _pre_payload.get("analysis_results", [])
+                    ai_rpt_cfg = build_report_config_from_ui(
+                        report_structure=report_structure,
+                        report_style=report_style,
+                        report_length=report_length,
+                        html_theme=html_theme,
+                        literature_enabled=literature_config.get("enabled", False) if literature_config else False,
+                        literature_keywords=literature_config.get("keywords", "") if literature_config else "",
+                        literature_max_sources=literature_config.get("max_sources", 15) if literature_config else 15,
+                        literature_year_range=literature_config.get("year_range", "不限") if literature_config else "不限",
+                        background_enabled=background_config.get("enabled", False) if background_config else False,
+                        background_source_path=background_config.get("source_path", "") if background_config else "",
                     )
-                    if not _pre_has_reg or not _pre_has_sig:
-                        precheck_msgs.append(
-                            "💡 当前数据仍可生成论文式分析报告，但实证结果部分将以已有描述统计和探索性分析为主。"
-                        )
-            if literature_config.get("enabled") and not is_structure_supports_literature(report_structure):
-                precheck_msgs.append(
-                    "💡 已启用文献综述检索，但仅在「学术论文式报告」结构下生效。"
-                    "请将报告结构切换为「学术论文式报告」以启用文献综述。"
-                )
-            if literature_config.get("enabled") and not literature_config.get("keywords", "").strip():
-                precheck_msgs.append(
-                    "💡 已启用文献综述检索但未输入研究关键词，将跳过文献检索。"
-                )
+                    ai_result = run_report_generation_from_ui(
+                        df=raw_df,
+                        schema_df=schema_df,
+                        config=config,
+                        analysis_results=analysis_results,
+                        quality=quality,
+                        llm_config=ai_llm_cfg,
+                        report_config=ai_rpt_cfg,
+                    )
 
-            if not precheck_ok:
-                for msg in precheck_msgs:
-                    if msg.startswith("❌"):
-                        st.error(msg)
-                    elif msg.startswith("💡"):
-                        st.info(msg)
-            else:
-                for msg in precheck_msgs:
-                    st.info(msg)
+                if ai_result.get("success"):
+                    # 显示生成警告（如有）
+                    ai_warnings = ai_result.get("warnings", [])
+                    if ai_warnings:
+                        with st.expander(f"⚠️ 生成提示（{len(ai_warnings)} 条）", expanded=False):
+                            for w in ai_warnings:
+                                st.caption(f"· {w}")
 
-                # ── 生成前隐私变量确认 ──
-                privacy_summary = summarize_ai_variable_privacy(schema_df)
-                privacy_msg = get_ai_privacy_summary_message(privacy_summary)
-                if privacy_summary.get("has_high_risk_sent"):
-                    st.warning(privacy_msg)
-                else:
-                    st.success(privacy_msg)
+                    st.success(
+                        f"✅ AI 报告生成完成！"
+                        f"（模型: {selected_model}，"
+                        f"Token: {ai_result.get('llm_response', {}).get('usage', {}).get('total_tokens', 'N/A')}）"
+                    )
 
-                if st.button("🤖 生成 AI 分析报告", type="primary", key="gen_ai_report_btn"):
-                    with st.spinner("正在生成 AI 分析报告…"):
-                        if has_analysis:
-                            analysis_results = st.session_state["ai_analysis_results"]
-                        else:
-                            analysis_results = run_full_analysis(
-                                raw_df, schema_df, config, var_dict=generic_var_dict_map,
+                    # Markdown 报告预览
+                    with st.expander("📝 AI 报告（Markdown）", expanded=True):
+                        st.markdown(ai_result["markdown_report"])
+
+                    # HTML 预览（使用所选主题）
+                    with st.expander(f"🌐 HTML 报告预览（主题：{html_theme}）", expanded=False):
+                        if ai_result.get("html_report"):
+                            st.components.v1.html(
+                                ai_result["html_report"],
+                                height=800,
+                                scrolling=True,
                             )
 
-                        ai_llm_cfg = build_llm_config_from_ui(
-                            provider_config=provider_config,
-                            api_key=resolved_api_key,
-                            model=selected_model,
-                            temperature=temperature,
-                            max_tokens=max_tokens,
-                            provider_key=provider_key,
-                            chat_path=custom_chat_path if provider_key == "custom_openai" else "/chat/completions",
+                    # 下载按钮
+                    safe_title = config.get("report_title", "AI报告").replace(" ", "_")
+                    ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
+
+                    dl1, dl2, dl3 = st.columns(3)
+                    with dl1:
+                        st.download_button(
+                            "📥 下载 Markdown",
+                            data=ai_result["markdown_report"],
+                            file_name=f"AI_{safe_title}_{ts}.md",
+                            mime="text/markdown",
                         )
-                        ai_rpt_cfg = build_report_config_from_ui(
-                            report_structure=report_structure,
-                            report_style=report_style,
-                            report_length=report_length,
-                            html_theme=html_theme,
-                            literature_enabled=literature_config.get("enabled", False) if literature_config else False,
-                            literature_keywords=literature_config.get("keywords", "") if literature_config else "",
-                            literature_max_sources=literature_config.get("max_sources", 15) if literature_config else 15,
-                            literature_year_range=literature_config.get("year_range", "不限") if literature_config else "不限",
-                            background_enabled=background_config.get("enabled", False) if background_config else False,
-                            background_source_path=background_config.get("source_path", "") if background_config else "",
-                        )
-                        ai_result = run_report_generation_from_ui(
-                            df=raw_df,
-                            schema_df=schema_df,
-                            config=config,
-                            analysis_results=analysis_results,
-                            quality=quality,
-                            llm_config=ai_llm_cfg,
-                            report_config=ai_rpt_cfg,
-                        )
-
-                    if ai_result.get("success"):
-                        # 显示生成警告（如有）
-                        ai_warnings = ai_result.get("warnings", [])
-                        if ai_warnings:
-                            with st.expander(f"⚠️ 生成提示（{len(ai_warnings)} 条）", expanded=False):
-                                for w in ai_warnings:
-                                    st.caption(f"· {w}")
-
-                        st.success(
-                            f"✅ AI 报告生成完成！"
-                            f"（模型: {selected_model}，"
-                            f"Token: {ai_result.get('llm_response', {}).get('usage', {}).get('total_tokens', 'N/A')}）"
-                        )
-
-                        # Markdown 报告预览
-                        with st.expander("📝 AI 报告（Markdown）", expanded=True):
-                            st.markdown(ai_result["markdown_report"])
-
-                        # HTML 预览（使用所选主题）
-                        with st.expander(f"🌐 HTML 报告预览（主题：{html_theme}）", expanded=False):
-                            if ai_result.get("html_report"):
-                                st.components.v1.html(
-                                    ai_result["html_report"],
-                                    height=800,
-                                    scrolling=True,
-                                )
-
-                        # 下载按钮
-                        safe_title = config.get("report_title", "AI报告").replace(" ", "_")
-                        ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
-
-                        dl1, dl2, dl3 = st.columns(3)
-                        with dl1:
+                    with dl2:
+                        if ai_result.get("html_report"):
                             st.download_button(
-                                "📥 下载 Markdown",
-                                data=ai_result["markdown_report"],
-                                file_name=f"AI_{safe_title}_{ts}.md",
-                                mime="text/markdown",
+                                "📥 下载 HTML",
+                                data=ai_result["html_report"],
+                                file_name=f"AI_{safe_title}_{ts}.html",
+                                mime="text/html",
                             )
-                        with dl2:
-                            if ai_result.get("html_report"):
-                                st.download_button(
-                                    "📥 下载 HTML",
-                                    data=ai_result["html_report"],
-                                    file_name=f"AI_{safe_title}_{ts}.html",
-                                    mime="text/html",
-                                )
-                        with dl3:
-                            if ai_result.get("docx_report"):
-                                st.download_button(
-                                    "📥 下载 DOCX",
-                                    data=ai_result["docx_report"],
-                                    file_name=f"AI_{safe_title}_{ts}.docx",
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                )
-                    else:
-                        raw_error = ai_result.get('error', '未知错误')
-                        friendly_err = get_ai_report_error_message(raw_error)
-                        st.error(friendly_err)
-                        # 显示 LLM 原始错误（折叠）
-                        llm_resp = ai_result.get("llm_response")
-                        with st.expander("🔍 技术详情（调试信息）", expanded=False):
-                            if llm_resp and not llm_resp.get("success"):
-                                st.text(
-                                    f"Provider: {llm_resp.get('provider')}\n"
-                                    f"Model: {llm_resp.get('model')}\n"
-                                    f"Error: {llm_resp.get('error')}"
-                                )
-                            else:
-                                st.text(f"Raw error: {raw_error}")
+                    with dl3:
+                        if ai_result.get("docx_report"):
+                            st.download_button(
+                                "📥 下载 DOCX",
+                                data=ai_result["docx_report"],
+                                file_name=f"AI_{safe_title}_{ts}.docx",
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            )
+                else:
+                    raw_error = ai_result.get('error', '未知错误')
+                    friendly_err = get_ai_report_error_message(raw_error)
+                    st.error(friendly_err)
+                    # 显示 LLM 原始错误（折叠）
+                    llm_resp = ai_result.get("llm_response")
+                    with st.expander("🔍 技术详情（调试信息）", expanded=False):
+                        if llm_resp and not llm_resp.get("success"):
+                            st.text(
+                                f"Provider: {llm_resp.get('provider')}\n"
+                                f"Model: {llm_resp.get('model')}\n"
+                                f"Error: {llm_resp.get('error')}"
+                            )
+                        else:
+                            st.text(f"Raw error: {raw_error}")
 
-            # ---- 使用说明 ----
-            with st.expander("📖 使用说明", expanded=False):
-                st.markdown("""
-                **AI 自动报告工作原理：**
-                1. 系统使用 pandas/scipy/statsmodels 完成所有统计计算
-                2. 统计结果被打包为结构化 JSON（不包含原始数据）
-                3. JSON 随系统提示词发送给所选大语言模型
-                4. 大语言模型基于统计结果撰写分析报告
-                5. 系统将 Markdown 报告转换为 HTML/DOCX 格式
+        # ---- 使用说明 ----
+        with st.expander("📖 使用说明", expanded=False):
+            st.markdown("""
+            **AI 自动报告工作原理：**
+            1. 系统使用 pandas/scipy/statsmodels 完成所有统计计算
+            2. 统计结果被打包为结构化 JSON（不包含原始数据）
+            3. JSON 随系统提示词发送给所选大语言模型
+            4. 大语言模型基于统计结果撰写分析报告
+            5. 系统将 Markdown 报告转换为 HTML/DOCX 格式
 
-                **AI 的角色：** AI 仅负责解释统计结果、总结发现、生成报告文字。
-                所有数值均为程序计算，AI 不直接进行任何数学计算。
+            **AI 的角色：** AI 仅负责解释统计结果、总结发现、生成报告文字。
+            所有数值均为程序计算，AI 不直接进行任何数学计算。
 
-                **注意事项：**
-                - AI 生成内容可能存在误差，建议人工审阅
-                - 报告中的结论应结合领域知识进行判断
-                - 相关关系不等于因果关系
-                """)
+            **注意事项：**
+            - AI 生成内容可能存在误差，建议人工审阅
+            - 报告中的结论应结合领域知识进行判断
+            - 相关关系不等于因果关系
+            """)
 
-            # ---- outputs 安全提示 ----
-            with st.expander("🔒 数据安全与 outputs/ 目录说明", expanded=False):
-                st.markdown(get_outputs_safety_hint())
+        # ---- outputs 安全提示 ----
+        with st.expander("🔒 数据安全与 outputs/ 目录说明", expanded=False):
+            st.markdown(get_outputs_safety_hint())

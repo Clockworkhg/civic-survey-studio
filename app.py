@@ -88,6 +88,17 @@ st.markdown('<div class="disclaimer">'
 # ---- 侧边栏 ----
 sb = render_sidebar()
 
+# ---- API 配置（侧边栏） ----
+from src.ui.sidebar import render_api_sidebar_section
+render_api_sidebar_section()
+
+# ── 检测文件上传：如果用户上传了文件但当前处于示例数据模式，自动切换 ──
+if sb["generic_file"] is not None and st.session_state.get("_use_example_data"):
+    st.session_state["_use_example_data"] = False
+    st.session_state.pop("_example_raw_df", None)
+    st.session_state.pop("_example_var_dict_df", None)
+    st.rerun()
+
 # ── 示例数据加载 ──
 if sb["load_example_clicked"]:
     example_df, example_var_df = load_builtin_example_data()
@@ -140,6 +151,13 @@ if st.session_state.get("_last_file_key") != _current_file_key:
     st.session_state.pop("gen_tu_payload", None)
     st.session_state.pop("gen_blueprint", None)
     st.session_state.pop("_last_file_key", None)
+    # 重置为默认配置（数据源变了，旧分析配置不再适用）
+    st.session_state["generic_config"] = {
+        "report_title": "问卷数据分析报告",
+        "target_variable": "",
+        "group_variables": [],
+        "explanatory_variables": [],
+    }
     st.session_state["_last_file_key"] = _current_file_key
 
 # ── 构建变量说明字典（增强利用） ──

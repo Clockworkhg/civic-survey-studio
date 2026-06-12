@@ -143,3 +143,30 @@ class TestNoCircularImports:
         assert src.__version__ == "0.1.0", (
             f"__version__ should be 0.1.0, got {src.__version__}"
         )
+
+
+class TestAppStartsWithoutImportError:
+    """Verify app.py starts via Streamlit AppTest without exceptions."""
+
+    def test_app_starts_without_exception(self):
+        """AppTest should run app.py without ImportError or other exceptions."""
+        from streamlit.testing.v1 import AppTest
+        at = AppTest.from_file("app.py")
+        at.run(timeout=30)
+        assert not at.exception, (
+            f"App should start without exception, got: {at.exception}"
+        )
+
+    def test_landing_imports_resolve_at_runtime(self):
+        """get_landing_hero and get_landing_cards must be importable."""
+        import src.ui.messages as m
+        assert hasattr(m, "get_landing_hero"), "get_landing_hero missing"
+        assert hasattr(m, "get_landing_cards"), "get_landing_cards missing"
+        assert callable(m.get_landing_hero)
+        assert callable(m.get_landing_cards)
+        # Verify they produce HTML with brand name
+        assert "CivicSurvey Studio" in m.get_landing_hero()
+        # get_landing_cards contains workflow step cards (5 steps)
+        cards_html = m.get_landing_cards()
+        assert "上传问卷数据" in cards_html
+        assert "报告工作台" in cards_html

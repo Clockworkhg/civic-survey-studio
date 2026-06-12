@@ -134,6 +134,22 @@ class TestHomepageContent:
             f"首页包含已废弃的旧术语: {found}"
         )
 
+    def test_homepage_hero_has_no_load_example_button(self, at_landing):
+        """首页 Hero 区不应有 hero_load_example 按钮（已移除，避免与侧边栏重复）。"""
+        all_text = _collect_all_markdown_text(at_landing)
+        # The hero area CTA should guide to sidebar, not duplicate the load button
+        assert "在左侧" in all_text or "侧边栏" in all_text or "左侧栏" in all_text, (
+            "首页应引导用户使用侧边栏数据源（而非重复放加载按钮）"
+        )
+
+    def test_homepage_no_internal_docs_quickstart_route(self, at_landing):
+        """首页不应通过 /docs/quickstart.md 内部路由跳转（Streamlit 不服务该路径）。"""
+        all_text = _collect_all_markdown_text(at_landing)
+        # The rendered page text should not contain the raw doc path
+        assert "/docs/quickstart.md" not in all_text, (
+            "首页不应渲染 /docs/quickstart.md 内部路由"
+        )
+
     def test_homepage_contains_csv_excel(self, at_landing):
         """首页提到支持的文件格式。"""
         all_text = _collect_all_markdown_text(at_landing)

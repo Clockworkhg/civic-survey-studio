@@ -242,6 +242,33 @@ class TestBeginnerGuide:
         for name in ("get_landing_hero", "get_landing_cards", "get_beginner_flow_guide"):
             assert hasattr(m, name), f"src.ui.messages 缺少导出: {name}"
 
+    def test_quickstart_guide_function_exists(self):
+        """get_quickstart_guide() 应存在且返回非空 HTML（不依赖文件读取）。"""
+        import src.ui.messages as m
+        assert hasattr(m, "get_quickstart_guide"), "缺少 get_quickstart_guide"
+        assert callable(m.get_quickstart_guide)
+        html = m.get_quickstart_guide()
+        assert isinstance(html, str) and len(html) > 200, "quickstart 应返回非空 HTML"
+        # Should contain 5-step content, not a file path link
+        assert "上传数据" in html
+        assert "分析方案" in html or "配置分析方案" in html
+        assert "报告" in html
+        assert "/docs/quickstart.md" not in html, (
+            "quickstart 内容不得包含 /docs/quickstart.md 内部路由"
+        )
+
+    def test_landing_hero_does_not_link_to_docs_quickstart(self):
+        """首页 Hero HTML 不得包含 /docs/quickstart.md 内部路由（会导致空白页）。"""
+        import src.ui.messages as m
+        hero = m.get_landing_hero()
+        assert "/docs/quickstart.md" not in hero, (
+            "Hero HTML 不应包含 /docs/quickstart.md 链接"
+        )
+        cards = m.get_landing_cards()
+        assert "/docs/quickstart.md" not in cards, (
+            "Cards HTML 不应包含 /docs/quickstart.md 链接"
+        )
+
 
 # ================================================================
 # Example data messages

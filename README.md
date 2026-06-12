@@ -5,7 +5,7 @@ AI 辅助问卷统计分析与报告生成工作台
 
 CivicSurvey Studio 是一个面向问卷数据的统计分析与报告生成工作台，支持数据上传、变量识别、统计分析、可视化仪表盘、AI 辅助报告生成和 HTML / DOCX 导出。AI 仅作为辅助分析和报告草稿生成工具，最终结论仍需人工复核。
 
-> **当前版本：v0.1.1** — UI 品牌刷新与入口修复 | [变更日志](CHANGELOG.md) | [路线图](docs/roadmap.md) | [已知问题](docs/known_issues.md)
+> **当前版本：v0.1.1** — UI 优化与入口修复 | [变更日志](CHANGELOG.md) | [路线图](docs/roadmap.md) | [已知问题](docs/known_issues.md)
 
 [![Tests](https://github.com/Clockworkhg/civic-survey-studio/actions/workflows/tests.yml/badge.svg)](https://github.com/Clockworkhg/civic-survey-studio/actions/workflows/tests.yml)
 

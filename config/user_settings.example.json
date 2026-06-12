@@ -1,0 +1,6 @@
+{
+  "provider_key": "deepseek",
+  "api_key": "sk-your-api-key-here",
+  "model": "deepseek-v4-pro",
+  "remember": true
+}

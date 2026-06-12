@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Streamlit smoke tests: 15 → 22 passed
 - 新增：2 个 AppTest 集成测试 + 2 个 quickstart 安全测试 + 2 个 smoke 回归测试
 
-## [0.1.0] - 2026-06-13
+## [0.1.0] - 2026-06-12
 
 ### Added
 

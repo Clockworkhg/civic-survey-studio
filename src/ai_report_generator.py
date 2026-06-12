@@ -331,10 +331,14 @@ def generate_ai_report(
         result["error"] = f"LLM 调用失败: {llm_result.get('error', '未知错误')}"
         return result
 
-    markdown_text = llm_result.get("content", "")
+    # ---- Step 3.3: 提取 AI 返回内容（处理 JSON 包裹、转义等）----
+    from src.report_rendering import extract_report_content, sanitize_markdown_text
+    raw_content = llm_result.get("content", "")
+    markdown_text = extract_report_content(raw_content)
     if not markdown_text.strip():
-        result["error"] = "LLM 返回了空内容。"
+        result["error"] = "LLM 返回了空内容（或仅有 JSON 包裹无实际报告）。"
         return result
+    markdown_text = sanitize_markdown_text(markdown_text)
 
     # ---- Step 3.5: 变量名后处理（自动替换泄露的英文列名）----
     markdown_text = _sanitize_variable_names(markdown_text, schema_df)
@@ -349,24 +353,23 @@ def generate_ai_report(
 
     result["markdown_report"] = markdown_text
 
-    # ---- Step 4: 转换为 HTML / DOCX ----
+    # ---- Step 4: 转换为 HTML / DOCX (v0.1.0 Phase 4: 统一渲染管线) ----
+    from src.report_rendering import render_markdown_to_html, render_markdown_to_docx
     report_title = config.get("report_title", "数据分析报告")
 
     try:
-        result["html_report"] = render_html_report(
-            markdown_content=markdown_text,
+        result["html_report"] = render_markdown_to_html(
+            markdown_text=markdown_text,
             html_theme=_rpt.html_theme,
             report_title=report_title,
         )
     except Exception as e:
         logger.warning(f"HTML 转换警告: {e}")
-        # 非致命错误
 
     try:
-        result["docx_report"] = _markdown_to_docx(markdown_text, config)
+        result["docx_report"] = render_markdown_to_docx(markdown_text, config)
     except Exception as e:
         logger.warning(f"DOCX 转换警告: {e}")
-        # 非致命错误
 
     result["success"] = True
 

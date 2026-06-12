@@ -559,6 +559,7 @@ def _markdown_to_body_html(markdown_text: str) -> str:
     in_table = False
     in_code_block = False
     in_paragraph = False
+    i = 0
 
     def _flush_paragraph():
         nonlocal in_paragraph
@@ -566,7 +567,8 @@ def _markdown_to_body_html(markdown_text: str) -> str:
             html_lines.append("</p>")
             in_paragraph = False
 
-    for line in lines:
+    while i < len(lines):
+        line = lines[i]
         # ── 代码块 ──
         if line.startswith("```"):
             _flush_paragraph()
@@ -578,10 +580,12 @@ def _markdown_to_body_html(markdown_text: str) -> str:
             else:
                 html_lines.append('<pre>')
                 in_code_block = True
+            i += 1
             continue
 
         if in_code_block:
             html_lines.append(_escape_html(line))
+            i += 1
             continue
 
         # ── 表格处理 ──
@@ -591,12 +595,12 @@ def _markdown_to_body_html(markdown_text: str) -> str:
 
             # 分隔行（如 |---|---|）
             if all(re.match(r'^:?-{2,}:?$', c) for c in cells):
+                i += 1
                 continue
 
             if not in_table:
                 in_table = True
                 html_lines.append('<table class="report-table">')
-                # 第一行是表头
                 html_lines.append("<thead><tr>")
                 for c in cells:
                     html_lines.append(f"<th>{_escape_html(c)}</th>")
@@ -606,6 +610,7 @@ def _markdown_to_body_html(markdown_text: str) -> str:
                 for c in cells:
                     html_lines.append(f"<td>{_escape_html(c)}</td>")
                 html_lines.append("</tr>")
+            i += 1
             continue
         else:
             if in_table:
@@ -616,19 +621,63 @@ def _markdown_to_body_html(markdown_text: str) -> str:
         if line.startswith("### "):
             _flush_paragraph()
             html_lines.append(f"<h3>{_escape_html(line[4:])}</h3>")
+            i += 1
             continue
         elif line.startswith("## "):
             _flush_paragraph()
             html_lines.append(f"<h2>{_escape_html(line[3:])}</h2>")
+            i += 1
             continue
         elif line.startswith("# "):
             _flush_paragraph()
             html_lines.append(f"<h1>{_escape_html(line[2:])}</h1>")
+            i += 1
             continue
 
         # ── 空行 → 段落结束 ──
         if line.strip() == "":
             _flush_paragraph()
+            i += 1
+            continue
+
+        # ── 无序列表（收集连续项）──
+        if re.match(r"^\s*[-*+]\s+", line):
+            _flush_paragraph()
+            items = []
+            while i < len(lines) and re.match(r"^\s*[-*+]\s+", lines[i]):
+                items.append(re.sub(r"^\s*[-*+]\s+", "", lines[i]))
+                i += 1
+            html_lines.append("<ul>")
+            for item in items:
+                html_lines.append(f"<li>{_process_inline_formatting(item)}</li>")
+            html_lines.append("</ul>")
+            continue
+
+        # ── 有序列表（收集连续项）──
+        if re.match(r"^\s*\d+[.)]\s+", line):
+            _flush_paragraph()
+            items = []
+            while i < len(lines) and re.match(r"^\s*\d+[.)]\s+", lines[i]):
+                items.append(re.sub(r"^\s*\d+[.)]\s+", "", lines[i]))
+                i += 1
+            html_lines.append("<ol>")
+            for item in items:
+                html_lines.append(f"<li>{_process_inline_formatting(item)}</li>")
+            html_lines.append("</ol>")
+            continue
+
+        # ── 引用 ──
+        if line.startswith("> "):
+            _flush_paragraph()
+            html_lines.append(f"<blockquote>{_process_inline_formatting(line[2:])}</blockquote>")
+            i += 1
+            continue
+
+        # ── 水平线 ──
+        if line.strip() in ("---", "***", "___", "* * *", "- - -"):
+            _flush_paragraph()
+            html_lines.append("<hr>")
+            i += 1
             continue
 
         # ── 普通文本（处理加粗） ──
@@ -637,6 +686,7 @@ def _markdown_to_body_html(markdown_text: str) -> str:
             html_lines.append("<p>")
             in_paragraph = True
         html_lines.append(processed)
+        i += 1
 
     # ── 收尾 ──
     _flush_paragraph()

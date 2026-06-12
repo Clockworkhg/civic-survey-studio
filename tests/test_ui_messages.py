@@ -197,7 +197,7 @@ class TestBeginnerGuide:
     def test_guide_contains_hero_title(self):
         """首页包含 Hero 区主标题。"""
         guide = get_beginner_flow_guide()
-        assert "政务数据分析工作台" in guide, "Hero 区域应包含主标题"
+        assert "CivicSurvey Studio" in guide, "Hero 区域应包含主标题"
 
     def test_guide_contains_three_cards(self):
         """首页包含 3 张起步卡片。"""

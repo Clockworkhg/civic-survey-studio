@@ -42,18 +42,18 @@ section[data-testid="stAppViewContainer"] > .main {{
    主内容区宽度与间距
    ============================================================ */
 
-/* 主内容容器 — 约束最大宽度，减少顶部空白 */
+/* 主内容容器 — 约束最大宽度，减少空白 */
 .block-container {{
-    max-width: 1180px !important;
-    padding-top: 2rem !important;
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
+    max-width: 1200px !important;
+    padding-top: 1.5rem !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
 }}
 
 /* Streamlit 全局 padding 缩减 */
 section[data-testid="stAppViewContainer"] .main .block-container {{
-    padding-top: 1.5rem !important;
-    max-width: 1180px !important;
+    padding-top: 1rem !important;
+    max-width: 1200px !important;
 }}
 
 /* ============================================================
@@ -79,9 +79,9 @@ section[data-testid="stSidebar"] {{
 }}
 
 section[data-testid="stSidebar"] .block-container {{
-    padding-top: 1rem !important;
-    padding-left: 1.2rem !important;
-    padding-right: 1.2rem !important;
+    padding-top: 0.8rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
 }}
 
 section[data-testid="stSidebar"] .stMarkdown {{

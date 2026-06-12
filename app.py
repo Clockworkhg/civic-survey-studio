@@ -1,7 +1,7 @@
-"""政务数据分析工作台 —— 通用问卷数据 AI 辅助统计分析与报告生成平台
+"""CivicSurvey Studio（问策 Insight） — AI 辅助问卷统计分析与报告生成工作台
 
 5 步工作流:
-  1. 数据与变量    — 上传数据、预览、变量识别
+  1. 数据与变量    — 上传数据、预览、变量管理
   2. 分析方案      — 手动配置或 AI 推荐分析方案
   3. 统计分析      — 单变量/双变量/多变量统一分析
   4. 可视化仪表盘  — 自动生成图表
@@ -24,7 +24,12 @@ from src.ui.state import init_session_state
 from src.ui.sidebar import render_sidebar
 from src.ui.styles import inject_app_css
 from src.ui.analysis_helpers import auto_suggest_config_from_dict
-from src.ui.messages import get_beginner_flow_guide, get_example_data_loaded_message
+from src.ui.messages import (
+    get_beginner_flow_guide,
+    get_landing_hero,
+    get_landing_cards,
+    get_example_data_loaded_message,
+)
 from src.ui.example_data import load_example_data as load_builtin_example_data
 from src.ui.components import (
     render_page_header,
@@ -56,8 +61,8 @@ from src.ui.theme import COLORS
 # 页面配置
 # ================================================================
 st.set_page_config(
-    page_title="政务数据分析工作台",
-    page_icon="◈",
+    page_title="CivicSurvey Studio",
+    page_icon="▸",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -75,21 +80,24 @@ init_session_state()
 sb = render_sidebar()
 
 
+# ── 是否有数据加载 ──
+_has_data = sb["generic_file"] is not None or st.session_state.get("_use_example_data", False)
+
 # ================================================================
 # 标题区
 # ================================================================
-render_page_header(
-    title="政务数据分析工作台",
-    subtitle="上传问卷数据，自动识别变量类型，完成统计分析并生成报告",
-    step="",
-)
+if _has_data:
+    render_page_header(
+        title="CivicSurvey Studio",
+        subtitle="问策 Insight · 当前项目：问卷数据分析",
+        step="",
+    )
 
-# ── 免责声明（有数据时显示；无数据时英雄区已包含）──
-_has_data = sb["generic_file"] is not None or st.session_state.get("_use_example_data", False)
+# ── 免责声明（有数据时显示）──
 if _has_data:
     st.markdown(
-        f'<div style="font-size:11px;color:{COLORS.text_subtle};margin-bottom:16px;line-height:1.6;">'
-        '本平台用于辅助统计分析和报告生成。统计关联不等于因果关系，分析结果需结合实际情况进行人工判断。'
+        f'<div style="font-size:11px;color:{COLORS.text_subtle};margin-bottom:14px;line-height:1.6;">'
+        '统计关联不等于因果关系，分析结果需结合实际情况进行人工判断。AI 仅作为辅助工具。'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -118,7 +126,33 @@ _using_example = st.session_state.get("_use_example_data", False)
 
 # ── 无数据：引导页 ──
 if sb["generic_file"] is None and not _using_example:
-    st.markdown(get_beginner_flow_guide(), unsafe_allow_html=True)
+    # Hero
+    st.markdown(get_landing_hero(), unsafe_allow_html=True)
+
+    # CTA buttons
+    cta_col1, cta_col2, cta_col3 = st.columns([1, 1, 2])
+    with cta_col1:
+        if st.button("▸ 加载示例数据", key="hero_load_example", type="primary",
+                     help="加载内置的政府服务满意度模拟数据（无真实个人信息）"):
+            example_df, example_var_df = load_builtin_example_data()
+            if example_df is not None:
+                st.session_state["_example_raw_df"] = example_df
+                st.session_state["_example_var_dict_df"] = example_var_df
+                st.session_state["_use_example_data"] = True
+                st.rerun()
+    with cta_col2:
+        st.markdown(
+            f'<a href="docs/quickstart.md" target="_self" style="text-decoration:none;">'
+            f'<button style="width:100%;background:{COLORS.surface};'
+            f'color:{COLORS.text};border:1px solid {COLORS.border_strong};'
+            f'border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;'
+            f'cursor:pointer;">查看快速开始</button></a>',
+            unsafe_allow_html=True,
+        )
+
+    # Space, then cards
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(get_landing_cards(), unsafe_allow_html=True)
     st.stop()
 
 

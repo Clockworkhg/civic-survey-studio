@@ -48,6 +48,21 @@ def render_sidebar() -> Dict[str, Any]:
 
     with st.sidebar:
         # ═══════════════════════════════════════════
+        # Brand header
+        # ═══════════════════════════════════════════
+        st.markdown(
+            f'<div style="font-size:15px;font-weight:700;color:{COLORS.text_strong};'
+            f'margin-bottom:2px;">问策 Insight</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'<div style="font-size:10px;color:{COLORS.text_muted};'
+            f'text-transform:uppercase;letter-spacing:0.5px;'
+            f'margin-bottom:14px;">CivicSurvey Studio</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ═══════════════════════════════════════════
         # Section 1: Data Source
         # ═══════════════════════════════════════════
         _section_label("数据源")
@@ -82,23 +97,23 @@ def render_sidebar() -> Dict[str, Any]:
 
         # Example data button (compact, only when no file)
         if not generic_file:
-            st.markdown(
-                f'<div style="font-size:11px;color:{COLORS.text_muted};'
-                f'margin-top:8px;margin-bottom:4px;">没有数据？可加载内置模拟数据体验</div>',
-                unsafe_allow_html=True,
-            )
             if example_data_available():
+                st.markdown(
+                    f'<div style="font-size:11px;color:{COLORS.text_muted};'
+                    f'margin-top:8px;margin-bottom:4px;">没有数据？可加载内置模拟数据体验</div>',
+                    unsafe_allow_html=True,
+                )
                 if st.button("加载内置示例数据", key="load_example_btn",
                              help="加载政府服务满意度模拟数据（无真实个人信息）"):
                     load_example_clicked = True
             else:
-                st.caption("示例数据文件未找到，你仍可上传自己的数据。")
+                st.caption("示例数据文件未找到。")
 
         # ═══════════════════════════════════════════
         # Section 2: Variable Dictionary
         # ═══════════════════════════════════════════
         _section_label("变量说明表")
-        st.caption("可选，上传后增强变量识别精度。")
+        st.caption("可选，用于增强变量类型推断精度。")
 
         var_table_file = st.file_uploader(
             "变量说明表文件",

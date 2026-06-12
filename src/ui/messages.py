@@ -404,84 +404,148 @@ def get_export_directory_hint() -> str:
 # ================================================================
 
 
-def get_beginner_flow_guide() -> str:
-    """Render the landing page when no data is loaded.
-
-    Returns HTML for a productized hero area, three getting-started cards,
-    and five workflow step cards.
-    """
+def _landing_shared_constants():
+    """Return (C, R, card_css, steps) for landing page functions."""
     C = COLORS
     R = RADIUS
-
     card_css = (
         f"background:{C.surface};border:1px solid {C.border};"
-        f"border-radius:{R['md']};padding:18px;"
-        f"box-shadow:0 1px 2px rgba(16,24,40,0.04);"
+        f"border-radius:{R['md']};padding:20px;"
+        f"box-shadow:0 1px 3px rgba(16,24,40,0.06);"
     )
-    pending_dot = PIPELINE_STATUS_COLORS["pending"]
-    pending_bg = PIPELINE_STATUS_BG["pending"]
-
     steps = [
         ("数据与变量", "上传数据、预览与变量管理"),
-        ("分析方案", "手动配置或 AI 推荐分析方案"),
-        ("统计分析", "单变量 / 双变量 / 多变量统一分析"),
-        ("可视化仪表盘", "自动生成图表仪表盘"),
+        ("分析方案", "手动配置或 AI 推荐"),
+        ("统计分析", "单/双/多变量分析"),
+        ("可视化仪表盘", "自动生成图表"),
         ("报告工作台", "报告生成、预览、导出"),
     ]
+    return C, R, card_css, steps
 
-    step_cards = []
+
+def get_landing_hero() -> str:
+    """Render the landing page hero area (two-column: brand + 5-step overview).
+
+    Does NOT include CTA buttons — those are rendered as st.button() in app.py.
+    """
+    C, R, card_css, steps = _landing_shared_constants()
+
+    step_items = []
     for i, (name, hint) in enumerate(steps, 1):
-        step_cards.append(
-            f'<div style="flex:1;min-width:130px;background:{pending_bg};'
-            f'border:1px solid {C.border};border-radius:{R["md"]};padding:14px 10px;text-align:center;">'
-            f'<div style="width:26px;height:26px;border-radius:50%;background:{pending_dot};'
-            f'color:#fff;margin:0 auto 6px;line-height:26px;font-size:12px;font-weight:600;">{i}</div>'
-            f'<div style="font-size:13px;font-weight:600;color:{C.text};margin-bottom:2px;">{name}</div>'
-            f'<div style="font-size:11px;color:{C.text_muted};line-height:1.4;">{hint}</div>'
-            f'</div>'
+        step_items.append(
+            f'<div style="display:flex;align-items:center;gap:10px;'
+            f'padding:9px 0;border-bottom:1px solid {C.divider};">'
+            f'<div style="width:24px;height:24px;border-radius:50%;'
+            f'background:{C.surface_subtle};color:{C.text_muted};'
+            f'text-align:center;line-height:24px;font-size:11px;'
+            f'font-weight:600;flex-shrink:0;">{i}</div>'
+            f'<div style="flex:1;min-width:0;">'
+            f'<div style="font-size:13px;font-weight:600;color:{C.text};'
+            f'line-height:1.3;">{name}</div>'
+            f'<div style="font-size:11px;color:{C.text_muted};'
+            f'line-height:1.3;">{hint}</div>'
+            f'</div></div>'
         )
 
     return (
-        # ── Hero ──
-        f'<div style="max-width:880px;margin:0 auto;padding:36px 0 28px;">'
-        f'<div style="text-align:center;margin-bottom:32px;">'
-        f'<div style="font-size:28px;font-weight:700;color:{C.text_strong};margin-bottom:8px;">'
-        f'政务数据分析工作台</div>'
-        f'<div style="font-size:14px;color:{C.text_muted};margin-bottom:12px;line-height:1.6;">'
+        f'<div style="display:flex;gap:28px;flex-wrap:wrap;'
+        f'align-items:stretch;margin-bottom:8px;">'
+        # ── Left: brand ──
+        f'<div style="flex:1;min-width:300px;">'
+        f'<div style="font-size:32px;font-weight:700;color:{C.text_strong};'
+        f'line-height:1.2;margin-bottom:6px;">CivicSurvey Studio</div>'
+        f'<div style="font-size:14px;color:{C.primary};font-weight:500;'
+        f'margin-bottom:14px;">'
+        f'问策 Insight &middot; AI 辅助问卷统计分析与报告生成工作台</div>'
+        f'<div style="font-size:13px;color:{C.text_muted};'
+        f'line-height:1.65;margin-bottom:18px;max-width:480px;">'
         f'上传问卷数据，自动识别变量类型，完成统计分析、可视化与报告生成。</div>'
-        f'<div style="font-size:11px;color:{C.text_subtle};line-height:1.6;max-width:560px;margin:0 auto;">'
-        f'本平台用于辅助统计分析和报告生成。统计关联不等于因果关系，'
-        f'分析结果需结合实际情况进行人工判断。</div>'
+        # disclaimer
+        f'<div style="font-size:11px;color:{C.text_subtle};'
+        f'line-height:1.55;max-width:480px;">'
+        f'统计关联不等于因果关系，分析结果需结合实际情况进行人工判断。'
+        f'AI 仅作为辅助分析和报告草稿工具，最终结论仍需人工复核。</div>'
         f'</div>'
-
-        # ── Three getting-started cards ──
-        f'<div style="display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap;">'
-        f'<div style="flex:1;min-width:200px;{card_css}">'
-        f'<div style="font-size:14px;font-weight:600;color:{C.text};margin-bottom:6px;">'
-        f'上传问卷数据</div>'
-        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.55;">'
-        f'支持 CSV / Excel 格式，上传后自动完成数据质量检查和变量类型识别。'
-        f'请在左侧边栏上传文件。</div></div>'
-        f'<div style="flex:1;min-width:200px;{card_css}">'
-        f'<div style="font-size:14px;font-weight:600;color:{C.text};margin-bottom:6px;">'
-        f'加载示例数据</div>'
-        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.55;">'
-        f'没有数据？使用内置模拟数据快速体验完整分析流程。'
-        f'点击左侧边栏「加载内置示例数据」按钮。</div></div>'
-        f'<div style="flex:1;min-width:200px;{card_css}">'
-        f'<div style="font-size:14px;font-weight:600;color:{C.text};margin-bottom:6px;">'
-        f'配置 AI 报告</div>'
-        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.55;">'
-        f'仅在需要 AI 生成报告时配置 API Key。本地统计分析功能无需 API Key。'
-        f'在左侧边栏 AI 设置区配置。</div></div>'
-        f'</div>'
-
-        # ── Five workflow step cards ──
-        f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">'
-        f'{"".join(step_cards)}'
+        # ── Right: 5-step overview card ──
+        f'<div style="flex:1;min-width:260px;{card_css}">'
+        f'<div style="font-size:11px;color:{C.text_muted};'
+        f'text-transform:uppercase;letter-spacing:0.5px;'
+        f'margin-bottom:10px;">工作流概览</div>'
+        f'{"".join(step_items)}'
         f'</div>'
         f'</div>'
     )
+
+
+def get_landing_cards() -> str:
+    """Render the getting-started cards and workflow step cards."""
+    C, R, card_css, steps = _landing_shared_constants()
+
+    # ── Three getting-started cards ──
+    cards = (
+        f'<div style="display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap;">'
+        f'<div style="flex:1;min-width:200px;{card_css}">'
+        f'<div style="font-size:14px;font-weight:600;color:{C.text};margin-bottom:6px;">'
+        f'上传问卷数据</div>'
+        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.6;">'
+        f'支持 CSV / Excel 格式，上传后自动完成数据质量检查和变量类型识别。'
+        f'在左侧边栏上传文件即可开始。</div></div>'
+        f'<div style="flex:1;min-width:200px;{card_css}">'
+        f'<div style="font-size:14px;font-weight:600;color:{C.text};margin-bottom:6px;">'
+        f'加载示例数据</div>'
+        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.6;">'
+        f'无数据时可使用内置模拟数据快速体验完整分析流程。'
+        f'所有示例均为模拟数据，不含真实个人信息。</div></div>'
+        f'<div style="flex:1;min-width:200px;{card_css}">'
+        f'<div style="font-size:14px;font-weight:600;color:{C.text};margin-bottom:6px;">'
+        f'配置 AI 报告</div>'
+        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.6;">'
+        f'仅在需要 AI 生成报告时配置 API Key。'
+        f'本地统计分析无需 API Key。在左侧边栏 AI 设置区配置。</div></div>'
+        f'</div>'
+    )
+
+    # ── Five workflow step cards ──
+    pending_bg = PIPELINE_STATUS_BG["pending"]
+    step_cards_html = []
+    for i, (name, hint) in enumerate(steps, 1):
+        step_cards_html.append(
+            f'<div style="flex:1;min-width:130px;background:{C.surface};'
+            f'border:1px solid {C.border};border-radius:{R["md"]};'
+            f'padding:14px 10px;text-align:center;'
+            f'box-shadow:0 1px 2px rgba(16,24,40,0.04);">'
+            f'<div style="width:24px;height:24px;border-radius:50%;'
+            f'background:{pending_bg};margin:0 auto 8px;'
+            f'line-height:24px;font-size:11px;font-weight:600;'
+            f'color:{C.text_muted};">{i}</div>'
+            f'<div style="font-size:13px;font-weight:600;color:{C.text};'
+            f'margin-bottom:3px;">{name}</div>'
+            f'<div style="font-size:11px;color:{C.text_muted};'
+            f'line-height:1.4;">{hint}</div>'
+            f'</div>'
+        )
+
+    steps_row = (
+        f'<div style="display:flex;gap:10px;flex-wrap:wrap;'
+        f'margin-bottom:20px;">'
+        f'{"".join(step_cards_html)}'
+        f'</div>'
+    )
+
+    return cards + steps_row
+
+
+def get_beginner_flow_guide() -> str:
+    """Render the full landing page (hero + cards) as a single HTML block.
+
+    For cases where CTA buttons aren't needed inline.
+    """
+    action_hint = (
+        f'<div style="text-align:center;font-size:11px;color:{COLORS.text_subtle};'
+        f'margin-bottom:8px;margin-top:6px;">'
+        f'推荐操作：加载内置示例数据或上传你自己的问卷数据开始分析</div>'
+    )
+    return get_landing_hero() + action_hint + get_landing_cards()
 
 
 def get_example_data_loaded_message(dataset_name: str = "政府服务满意度示例数据") -> str:

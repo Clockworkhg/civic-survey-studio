@@ -196,6 +196,7 @@ def build_analysis_payload(
     research_subject: str = "",
     report_style: str = "standard",
     report_length: str = "standard",
+    var_dict_map: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """构建发送给 LLM 的完整分析 payload。
 
@@ -353,6 +354,15 @@ def build_analysis_payload(
         if p["analysis_id"] in completed_ids:
             p["status"] = "completed"
 
+    # ── v0.1.0 Phase 3: 变量元数据（统一来源，包含中文名/用途/取值标签/角色）──
+    from src.variable_metadata import build_variable_metadata_map, build_variable_name_map
+    _var_metadata = build_variable_metadata_map(
+        schema_df, var_dict_map=var_dict_map, privacy_settings=privacy_settings, config=config,
+    )
+    _var_name_map = build_variable_name_map(schema_df, var_dict_map=var_dict_map)
+    # 合并 variable_name_map 到 cn_map（优先使用元数据模块的结果）
+    cn_map = {**{col: _var_metadata[col]["label"] for col in _var_metadata}, **cn_map}
+
     # ── 组装 payload ──
     payload = {
         "project_meta": _package_project_meta(
@@ -362,9 +372,14 @@ def build_analysis_payload(
             report_style=report_style,
             report_length=report_length,
             cn_map=cn_map,
+            variable_name_map=_var_name_map,
         ),
         "data_overview": _package_data_overview(df, quality, selected_sheet, file_type),
-        "variable_schema": _package_variable_schema(schema_df, privacy_settings),
+        "variable_schema": _enrich_variable_schema_with_metadata(
+            _package_variable_schema(schema_df, privacy_settings),
+            _var_metadata,
+        ),
+        "variables": _var_metadata,
         "user_analysis_config": _package_user_config(
             config=config,
             target_type=target_type,
@@ -1332,6 +1347,7 @@ def _package_project_meta(
     report_style: str = "standard",
     report_length: str = "standard",
     cn_map: Optional[Dict[str, str]] = None,
+    variable_name_map: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """项目元信息（完全通用，无硬编码内容）。
 
@@ -1347,11 +1363,13 @@ def _package_project_meta(
         "tool": "通用问卷数据 AI 辅助统计分析与报告生成平台",
     }
     # ── 变量名中英文映射（供 AI 报告使用）──
-    if cn_map:
+    if variable_name_map:
+        result["variable_name_map"] = variable_name_map
+    elif cn_map:
         result["variable_name_map"] = {
             col: display
             for col, display in cn_map.items()
-            if display and display != col  # 仅包含有实际中文名的变量
+            if display and display != col
         }
     return result
 
@@ -1393,6 +1411,24 @@ def _package_data_overview(
 # ================================================================
 # Section: variable_schema
 # ================================================================
+
+def _enrich_variable_schema_with_metadata(
+    schema_list: List[Dict[str, Any]],
+    var_metadata: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """将变量元数据（value_labels, description）注入到 variable_schema 列表。
+
+    v0.1.0 Phase 3: 使 AI 可以直接从 variable_schema 获取取值标签和说明。
+    """
+    for entry in schema_list:
+        col = entry.get("column", "")
+        if col in var_metadata:
+            meta = var_metadata[col]
+            entry["value_labels"] = meta.get("value_labels", {})
+            entry["description"] = meta.get("description", "")
+            entry["role"] = meta.get("role", "none")
+    return schema_list
+
 
 def _package_variable_schema(
     schema_df: pd.DataFrame,

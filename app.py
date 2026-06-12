@@ -527,6 +527,7 @@ with gt3:
         render_tab_univariate_analysis(
             raw_df, schema_df, cn_map, analyzable_cols, variable_df_generic,
             precomputed_results=gen_ctx.analysis_results if gen_ctx.analysis_results else None,
+            var_dict_map=generic_var_dict_map if generic_var_dict_map else None,
         )
 
         render_section("双变量分析", "分类变量间的交叉分析和数值变量间的相关性分析")

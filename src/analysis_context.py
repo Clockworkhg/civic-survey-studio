@@ -206,17 +206,23 @@ class AnalysisContext:
     # ── v0.1.0: 变量标签辅助函数 ──
 
     def get_variable_label(self, var_name: str) -> str:
-        """获取变量的显示标签：中文名（英文列名）。"""
-        cn = self.cn_map.get(var_name, "")
-        if cn and cn != var_name:
-            return f"{cn}（{var_name}）"
-        return var_name
+        """获取变量的显示标签：中文名（英文列名）。
+
+        v0.1.0 Phase 3: 委托给 src.variable_metadata 统一实现。
+        """
+        from src.variable_metadata import format_variable_name
+        return format_variable_name(
+            var_name, self.variable_schema, self.variable_dict_map,
+            mode="label_with_raw",
+        )
 
     def get_variable_description(self, var_name: str) -> str:
-        """获取变量说明文本。"""
-        info = self.variable_dict_map.get(var_name, {})
-        desc = info.get("变量用途", "") or info.get("取值或说明", "") or ""
-        return str(desc) if desc else ""
+        """获取变量说明文本。
+
+        v0.1.0 Phase 3: 委托给 src.variable_metadata 统一实现。
+        """
+        from src.variable_metadata import get_variable_description as _get_desc
+        return _get_desc(var_name, self.variable_schema, self.variable_dict_map)
 
     # ================================================================
     # v0.1.0: 统一配置写入入口
@@ -576,6 +582,7 @@ class AnalysisContext:
                 chart_summaries=self.chart_summaries,
                 selected_sheet=self.sheet_name or "",
                 file_type=self.file_type or "",
+                var_dict_map=self.variable_dict_map if self.variable_dict_map else None,
             )
             result["payload"] = self.analysis_payload
         except Exception as e:

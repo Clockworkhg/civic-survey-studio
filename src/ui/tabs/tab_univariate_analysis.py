@@ -15,6 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from src.generic_analysis import univariate_numeric, univariate_categorical, univariate_ordinal
+from src.variable_metadata import get_variable_label, get_value_labels, format_variable_name
 
 
 def render_tab_univariate_analysis(
@@ -25,6 +26,7 @@ def render_tab_univariate_analysis(
     variable_df_generic: pd.DataFrame | None = None,
     precomputed_results: Optional[Dict[str, Any]] = None,
     use_precomputed: bool = True,
+    var_dict_map: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Render the univariate analysis tab.
 
@@ -40,6 +42,8 @@ def render_tab_univariate_analysis(
         use_precomputed: If True (default) and precomputed_results are available,
             render from the cache. Falls back to live computation only when
             precomputed_results is None or explicitly disabled.
+        var_dict_map: Optional variable dictionary map for value label lookups
+            (v0.1.0 Phase 3).
     """
     st.markdown("### 单变量分析")
     st.caption("对每个变量根据其类型自动执行适配的分析。")

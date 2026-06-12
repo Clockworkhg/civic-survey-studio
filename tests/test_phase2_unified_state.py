@@ -541,33 +541,46 @@ class TestVariableLabelHelpers:
     """Variable label helpers from Phase 1 work correctly."""
 
     def test_get_variable_label_with_cn(self):
-        """Returns '中文名（英文列名）' format when cn exists."""
+        """Returns '中文名（英文列名）' format when display_name exists in schema."""
         from src.analysis_context import AnalysisContext
+        import pandas as pd
         ctx = AnalysisContext(mode="generic")
-        ctx.cn_map = {"satisfaction": "总体满意度"}
+        ctx.variable_schema = pd.DataFrame([
+            {"column": "satisfaction", "display_name": "总体满意度", "inferred_type": "numeric"},
+        ])
         label = ctx.get_variable_label("satisfaction")
         assert label == "总体满意度（satisfaction）"
 
     def test_get_variable_label_without_cn(self):
-        """Returns raw column name when no cn mapping."""
+        """Returns raw column name when no cn mapping in schema."""
         from src.analysis_context import AnalysisContext
+        import pandas as pd
         ctx = AnalysisContext(mode="generic")
-        ctx.cn_map = {}
+        ctx.variable_schema = pd.DataFrame([
+            {"column": "satisfaction", "display_name": "satisfaction", "inferred_type": "numeric"},
+        ])
         label = ctx.get_variable_label("satisfaction")
         assert label == "satisfaction"
 
     def test_get_variable_label_cn_equals_col(self):
-        """Returns raw column name when cn equals column name."""
+        """Returns raw column name when display_name equals column name."""
         from src.analysis_context import AnalysisContext
+        import pandas as pd
         ctx = AnalysisContext(mode="generic")
-        ctx.cn_map = {"satisfaction": "satisfaction"}
+        ctx.variable_schema = pd.DataFrame([
+            {"column": "satisfaction", "display_name": "satisfaction", "inferred_type": "numeric"},
+        ])
         label = ctx.get_variable_label("satisfaction")
         assert label == "satisfaction"
 
     def test_get_variable_description(self):
         """Returns variable description from dict_map."""
         from src.analysis_context import AnalysisContext
+        import pandas as pd
         ctx = AnalysisContext(mode="generic")
+        ctx.variable_schema = pd.DataFrame([
+            {"column": "satisfaction", "display_name": "总体满意度", "inferred_type": "numeric"},
+        ])
         ctx.variable_dict_map = {
             "satisfaction": {"变量用途": "衡量公众对政府服务的整体满意程度", "取值或说明": "1-5 分"},
         }
@@ -577,7 +590,11 @@ class TestVariableLabelHelpers:
     def test_get_variable_description_missing(self):
         """Returns empty string when variable not in dict_map."""
         from src.analysis_context import AnalysisContext
+        import pandas as pd
         ctx = AnalysisContext(mode="generic")
+        ctx.variable_schema = pd.DataFrame([
+            {"column": "satisfaction", "display_name": "总体满意度", "inferred_type": "numeric"},
+        ])
         ctx.variable_dict_map = {}
         desc = ctx.get_variable_description("nonexistent")
         assert desc == ""

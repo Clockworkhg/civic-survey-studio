@@ -409,6 +409,135 @@ def build_analysis_payload(
 
 
 # ================================================================
+# v0.1.0 Phase 3.5: AI-safe payload filter
+# ================================================================
+
+
+def filter_payload_for_ai(
+    payload: Dict[str, Any],
+    schema_df: pd.DataFrame,
+    privacy_settings: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """从完整 payload 中移除不应发送给 LLM 的变量信息。
+
+    过滤规则:
+      - send_to_ai_mode == "exclude" → 从 variables、variable_schema、
+        variable_name_map、analysis_results 中完全移除
+      - send_to_ai_mode in ("aggregate_only", "masked_examples") →
+        剥离 example_values 和 value_labels（如果 risk >= medium）
+      - 高风险 (privacy_risk == "high") 且未明确允许发送 → 默认排除
+      - 不修改原 payload（返回过滤后的副本）
+
+    Args:
+        payload: build_analysis_payload 的完整输出
+        schema_df: 变量 schema（用于读取隐私设置）
+        privacy_settings: 隐私设置字典（可选，若未提供则从 schema_df 读取）
+
+    Returns:
+        过滤后的 payload（安全发送给 LLM）
+    """
+    import copy
+
+    # 从 schema_df 读取隐私设置
+    if privacy_settings is None:
+        privacy_settings = _read_privacy_settings(schema_df)
+
+    # ── 确定哪些变量需要被排除 ──
+    excluded_cols: set = set()
+    aggregate_only_cols: set = set()
+
+    for _, row in schema_df.iterrows():
+        col = str(row.get("column", ""))
+        if not col:
+            continue
+
+        ps = privacy_settings.get(col, {})
+        risk = str(ps.get("privacy_risk", row.get("privacy_risk", "none")))
+        send_mode = str(ps.get("send_to_ai_mode", row.get("send_to_ai_mode", "aggregate_only")))
+        allow_send = ps.get("allow_send_to_ai", row.get("allow_send_to_ai", True))
+
+        # 高风险 + 未明确允许 → 排除
+        if risk == "high" and not allow_send:
+            excluded_cols.add(col)
+            continue
+
+        # 明确标记为不发送 → 排除
+        if send_mode in ("exclude", "none"):
+            excluded_cols.add(col)
+            continue
+
+        # 聚合模式 → 剥离样例
+        if send_mode == "aggregate_only":
+            aggregate_only_cols.add(col)
+        elif send_mode == "masked_examples":
+            aggregate_only_cols.add(col)  # 也剥离 value_labels
+
+    # ── 过滤 payload ──
+    filtered = copy.deepcopy(payload)
+
+    # 1. 过滤 variables 节
+    if "variables" in filtered:
+        filtered["variables"] = {
+            k: v for k, v in filtered["variables"].items()
+            if k not in excluded_cols
+        }
+        # 剥离 aggregate_only 变量的敏感信息
+        for col in aggregate_only_cols:
+            if col in filtered["variables"]:
+                filtered["variables"][col].pop("value_labels", None)
+
+    # 2. 过滤 variable_schema 节
+    if "variable_schema" in filtered:
+        filtered["variable_schema"] = [
+            entry for entry in filtered["variable_schema"]
+            if entry.get("column", "") not in excluded_cols
+        ]
+        for entry in filtered["variable_schema"]:
+            col = entry.get("column", "")
+            if col in aggregate_only_cols:
+                entry.pop("example_values", None)
+                entry.pop("value_labels", None)
+            elif col in excluded_cols:
+                continue
+
+    # 3. 过滤 project_meta.variable_name_map
+    if "project_meta" in filtered and "variable_name_map" in filtered["project_meta"]:
+        filtered["project_meta"]["variable_name_map"] = {
+            k: v for k, v in filtered["project_meta"]["variable_name_map"].items()
+            if k not in excluded_cols
+        }
+
+    # 4. 过滤 analysis_results — 移除涉及排除变量的结果
+    if "analysis_results" in filtered:
+        safe_results = []
+        for result_entry in filtered["analysis_results"]:
+            result_vars = set()
+            if isinstance(result_entry, dict):
+                for var_field in ("variables", "variable", "row_col", "col_col",
+                                  "predictors", "target_variable"):
+                    val = result_entry.get(var_field)
+                    if isinstance(val, str):
+                        result_vars.add(val)
+                    elif isinstance(val, list):
+                        result_vars.update(val)
+
+            # 如果分析结果涉及排除变量，跳过该结果
+            if result_vars & excluded_cols:
+                continue
+            safe_results.append(result_entry)
+        filtered["analysis_results"] = safe_results
+
+    # 5. 记录过滤信息
+    filtered["_privacy_filtered"] = True
+    if excluded_cols:
+        filtered["_privacy_excluded_vars"] = sorted(excluded_cols)
+    if aggregate_only_cols:
+        filtered["_privacy_aggregate_only_vars"] = sorted(aggregate_only_cols)
+
+    return filtered
+
+
+# ================================================================
 # Section: analysis_plan（自动生成分析计划）
 # ================================================================
 

@@ -184,6 +184,9 @@ def generate_ai_report(
             selected_sheet="",
             file_type="",
         )
+        # ── v0.1.0 Phase 3.5: 隐私过滤 — 移除不应发送给 LLM 的变量 ──
+        from src.analysis_packager import filter_payload_for_ai
+        payload = filter_payload_for_ai(payload, schema_df)
     except Exception as e:
         result["error"] = f"打包分析结果失败: {str(e)}"
         return result

@@ -224,6 +224,24 @@ class TestBeginnerGuide:
         guide = get_beginner_flow_guide()
         assert "CSV" in guide and "Excel" in guide, "应提到支持的格式"
 
+    def test_landing_functions_importable_and_callable(self):
+        """get_landing_hero 和 get_landing_cards 可导入且可调用。"""
+        from src.ui.messages import get_landing_hero, get_landing_cards
+        assert callable(get_landing_hero), "get_landing_hero 应为可调用函数"
+        assert callable(get_landing_cards), "get_landing_cards 应为可调用函数"
+        hero_html = get_landing_hero()
+        cards_html = get_landing_cards()
+        assert isinstance(hero_html, str) and len(hero_html) > 200, "hero 应返回非空 HTML"
+        assert isinstance(cards_html, str) and len(cards_html) > 200, "cards 应返回非空 HTML"
+        assert "CivicSurvey Studio" in hero_html, "hero 应包含品牌名"
+        assert "工作流概览" in hero_html, "hero 应包含工作流概览"
+
+    def test_landing_functions_exported_from_package(self):
+        """src.ui.messages 模块应导出 landing 函数。"""
+        import src.ui.messages as m
+        for name in ("get_landing_hero", "get_landing_cards", "get_beginner_flow_guide"):
+            assert hasattr(m, name), f"src.ui.messages 缺少导出: {name}"
+
 
 # ================================================================
 # Example data messages

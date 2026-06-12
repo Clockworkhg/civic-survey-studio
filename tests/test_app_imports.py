@@ -101,6 +101,25 @@ class TestNoCircularImports:
         assert hasattr(messages, "format_user_friendly_error")
         assert hasattr(messages, "get_no_api_key_message")
         assert hasattr(messages, "get_beginner_flow_guide")
+        # v0.1.1: landing page split functions
+        assert hasattr(messages, "get_landing_hero")
+        assert hasattr(messages, "get_landing_cards")
+        assert callable(messages.get_landing_hero)
+        assert callable(messages.get_landing_cards)
+
+    def test_landing_hero_renders_brand(self):
+        """get_landing_hero() should produce HTML with brand name."""
+        from src.ui.messages import get_landing_hero
+        html = get_landing_hero()
+        assert "CivicSurvey Studio" in html
+        assert "工作流概览" in html
+
+    def test_landing_cards_renders_steps(self):
+        """get_landing_cards() should produce HTML with 5 step cards."""
+        from src.ui.messages import get_landing_cards
+        html = get_landing_cards()
+        for step in ["数据与变量", "分析方案", "统计分析", "可视化仪表盘", "报告工作台"]:
+            assert step in html, f"Missing step: {step}"
 
     def test_can_import_example_data(self):
         """src.ui.example_data should import without error."""

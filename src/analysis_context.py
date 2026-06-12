@@ -59,7 +59,7 @@ class AnalysisContext:
 
     # ── 用户分析配置 ──
     user_analysis_config: Dict[str, Any] = field(default_factory=lambda: {
-        "report_title": "数据分析报告",
+        "report_title": "问卷数据分析报告",
         "research_subject": "",
         "target_variable": "",
         "group_variables": [],
@@ -221,7 +221,9 @@ class AnalysisContext:
 
         # ── 报告标题 ──
         titles = blueprint.get("recommended_report_titles", [])
-        if titles and (overwrite or not cfg.get("report_title") or cfg["report_title"] == "数据分析报告"):
+        # 判断是否为默认标题：空值、"数据分析报告"、"问卷数据分析报告"
+        _default_titles = {"数据分析报告", "问卷数据分析报告", ""}
+        if titles and (overwrite or cfg.get("report_title", "") in _default_titles):
             cfg["report_title"] = titles[0]
             messages.append(f"报告标题已设为：{titles[0]}")
 

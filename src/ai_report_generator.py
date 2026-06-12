@@ -44,9 +44,9 @@ def generate_ai_report(
     config: Dict[str, Any],
     analysis_results: Dict[str, Any],
     quality: Optional[Dict[str, Any]],
-    provider_config: Dict[str, Any],
-    api_key: str,
-    model: str,
+    provider_config: Dict[str, Any] = None,  # type: ignore[assignment]
+    api_key: str = "",
+    model: str = "",
     temperature: float = 0.3,
     max_tokens: int = 4096,
     provider_key: str = "",

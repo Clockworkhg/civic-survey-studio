@@ -1346,10 +1346,10 @@ def _g_sec_6_findings(ctx: _GenericReportContext) -> Dict:
     if ctx.target and ctx.target in univariate:
         uv = univariate[ctx.target]
         if isinstance(uv, dict) and "error" not in uv:
-            if "均值" in uv:
+            if "均值" in uv and uv.get("均值") is not None:
                 findings.append(
                     f"**发现一：{target_cn}总体概况。** "
-                    f"{target_cn}的均值为 {uv['均值']}（标准差 {uv['标准差']}），"
+                    f"{target_cn}的均值为 {uv.get('均值', 'N/A')}（标准差 {uv.get('标准差', 'N/A')}），"
                     f"数据分布偏度为 {uv.get('偏度', 'N/A')}，"
                     f"表明整体水平" + ("偏高" if uv.get('均值', 0) > 3 else "中等" if uv.get('均值', 0) > 2 else "偏低") + "。"
                 )

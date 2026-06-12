@@ -5,6 +5,36 @@ All notable changes to CivicSurvey Studio (问策 Insight) will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-06-13
+
+### Fixed
+
+- 「查看快速开始」按钮跳转 `/docs/quickstart.md` 导致空白页（Streamlit 不服务该路径）
+- 首页 Hero 与侧边栏各有一个「加载示例数据」按钮，造成入口重复
+- 首页 Hero 视觉偏散（间距、字号、卡片宽度收紧）
+- 侧面栏标题 "变量识别精度" → "变量类型推断精度"
+
+### Changed
+
+- 「查看快速开始」改为当前页面 Toggle 展开内置 5 步指南（无 URL 跳转）
+- 首页 Hero 移除重复的加载示例数据按钮，改为引导文字指向侧边栏
+- 首页 Hero 区域、3 张起步卡片、5 步流程卡片的间距和字号做收敛式调整
+- `app.py` 对 landing 函数使用 `getattr` 防御性调用，避免缺失时整页崩溃
+- `src/ui/messages.py` 新增 `__all__` 显式导出
+
+### Added
+
+- `get_quickstart_guide()` 内置 5 步快速开始 HTML（不依赖文件读取）
+- AppTest 集成测试（`test_app_starts_without_exception`）验证真实 Streamlit 启动
+- Import guard 测试（`test_landing_functions_importable_and_callable` 等 4 个）
+- 首页 HTML 不含 `/docs/quickstart.md` 路由的回归测试
+
+### Test Suite
+
+- pytest: 687 → 697 passed
+- Streamlit smoke tests: 15 → 22 passed
+- 新增：2 个 AppTest 集成测试 + 2 个 quickstart 安全测试 + 2 个 smoke 回归测试
+
 ## [0.1.0] - 2026-06-13
 
 ### Added

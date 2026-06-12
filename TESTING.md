@@ -381,9 +381,9 @@ tests/test_data/
 项目附带了自动化测试脚本：
 
 ```bash
-# 单元测试 + AppTest 前端烟雾测试（v0.1.0）
-python -m pytest tests/ -v                        # 全部 pytest 测试（687 passed, 0 failed）
-python -m pytest tests/test_streamlit_app_smoke.py -v  # 仅 AppTest 前端烟雾测试（15 passed）
+# 单元测试 + AppTest 前端烟雾测试（v0.1.1）
+python -m pytest tests/ -v                        # 全部 pytest 测试（697 passed, 0 failed）
+python -m pytest tests/test_streamlit_app_smoke.py -v  # 仅 AppTest 前端烟雾测试（22 passed）
 python test_run4.py                               # 集成测试（73/73 通过）
 python scripts/release_check.py                   # 发布检查（28 passed, 1 warning, 0 failed）
 ```

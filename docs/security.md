@@ -1,6 +1,6 @@
 # 数据安全与隐私说明
 
-本文档说明项目的安全设计、API Key 使用建议、隐私保护机制以及发布前的安全检查步骤。
+本文档说明 CivicSurvey Studio（问策 Insight）的安全设计、API Key 使用建议、隐私保护机制以及发布前的安全检查步骤。
 
 ---
 
@@ -41,7 +41,7 @@
 | 🟢 **低风险** | 人口统计属性（年龄、性别、学历等） | 允许发送 |
 | ⚪ **无风险** | 评分、满意度等纯数值变量 | 允许发送 |
 
-在 Tab 10（AI 分析）的「7. 🔒 隐私与变量使用设置」中，你可以逐变量调整发送策略。
+在「报告工作台」→「AI 报告」的隐私与变量使用设置中，你可以逐变量调整发送策略。
 
 ### 1.4 重要提醒
 
@@ -55,13 +55,13 @@
 
 ### 2.1 输入方式（优先级从高到低）
 
-1. **UI 直接输入**（推荐） — 在 Tab 10「AI 分析」页面的 API Key 输入框中填入。
+1. **UI 直接输入**（推荐） — 在侧边栏「AI 设置」或「报告工作台」→「AI 报告」页面的 API Key 输入框中填入。
 2. **Streamlit Secrets** — 在 `.streamlit/secrets.toml` 中配置（仅 Streamlit Cloud 推荐）。
 3. **环境变量** — 设置系统环境变量（如 `DEEPSEEK_API_KEY`）。
 
 ### 2.2 记住设置功能
 
-Tab 10 提供了「💾 记住设置」功能，勾选后 API Key 将以**明文**保存在 `config/user_settings.json` 中。
+在侧边栏「AI 设置」中勾选「记住设置」后，API Key 将以**明文**保存在 `config/user_settings.json` 中。
 
 **安全提示：**
 
@@ -115,7 +115,7 @@ Streamlit 应用默认无用户认证。如果在公共服务器上部署：
 
 发送给 AI 的 payload 在构建后还会经过 `filter_payload_for_ai()` 二次过滤，确保隐私变量不会泄露。
 
-### 4.0 过滤覆盖范围
+### 4.1 过滤覆盖范围
 
 隐私过滤器从以下 **9 个** payload 节中移除排除变量：
 
@@ -131,7 +131,7 @@ Streamlit 应用默认无用户认证。如果在公共服务器上部署：
 | `user_analysis_config` | 清除排除列表中的变量名 |
 | metadata | 用计数代替具体名称（`_privacy_excluded_count`） |
 
-### 4.1 send_to_ai_mode 规则
+### 4.2 send_to_ai_mode 规则
 
 | 模式 | 行为 |
 |------|------|
@@ -141,24 +141,25 @@ Streamlit 应用默认无用户认证。如果在公共服务器上部署：
 | `masked_examples` | 保留脱敏后的样例 |
 | `full` | 完整发送（需二次确认） |
 
+---
+
 ## 五、AI 报告生成前如何排除高风险变量
 
-### 4.1 自动评估
+### 5.1 自动评估
 
 数据加载后，系统自动评估每个变量的隐私风险（见 1.3 节）。
 
-### 4.2 逐变量控制
+### 5.2 逐变量控制
 
-在 Tab 10「AI 分析」→「7. 🔒 隐私与变量使用设置」中：
+在「报告工作台」→「AI 报告」→ 隐私与变量使用设置中：
 
 1. 展开高风险变量（红色标记，默认已展开）。
-2. 取消勾选「🤖 发送 AI」。
-3. 或选择 AI 发送方式为「仅发送聚合统计」或「不发送」。
-4. 点击「💾 应用设置」。
+2. 选择 AI 发送方式为「仅发送聚合统计」或「不发送」。
+3. 点击「应用设置」。
 
-### 4.3 生成前确认
+### 5.3 生成前确认
 
-在点击「🤖 生成 AI 分析报告」之前，页面会显示变量发送摘要：
+在点击「生成 AI 分析报告」之前，页面会显示变量发送摘要：
 
 - 总变量数、将发送给 AI 的变量数
 - 高风险变量数及其发送状态
@@ -223,7 +224,7 @@ print(f"Deleted {len(result['deleted'])} files")
 项目提供了 secrets 扫描测试：
 
 ```bash
-python -m pytest tests/test_no_secrets_committed.py -v
+pytest tests/test_no_secrets_committed.py -q
 ```
 
 该测试会扫描所有文本文件，检测：
@@ -239,7 +240,7 @@ python -m pytest tests/test_no_secrets_committed.py -v
 - [ ] 代码中无硬编码 API Key
 - [ ] `.env.example` 中所有值为空
 - [ ] `.gitignore` 包含 `.env`、`outputs/`、`.streamlit/secrets.toml`
-- [ ] `config/user_settings.json` 不存在（或仅包含测试数据）
+- [ ] `config/user_settings.json` 不存在（或仅包含占位符）
 - [ ] 示例数据（`examples/`）不包含真实个人信息
 - [ ] `outputs/` 已清理或不存在
 - [ ] 无包含真实 API Key 的日志文件
@@ -267,7 +268,7 @@ python -m pytest tests/test_no_secrets_committed.py -v
 
 如果必须在非本地环境运行：
 
-1. **不要保存 API Key** — 不要勾选「💾 记住设置」，每次都手动输入。
+1. **不要保存 API Key** — 不要勾选「记住设置」，每次都手动输入。
 2. **使用临时 API Key** — 创建有预算限制/使用限制的 API Key。
 3. **添加认证层** — 使用 Nginx 反向代理 + Basic Auth 或 OAuth。
 4. **定期清理 outputs/** — 确保报告不被公开访问。

@@ -1,6 +1,6 @@
 # 部署说明
 
-本文档介绍三种部署方案：本地运行、Streamlit Community Cloud、云服务器部署。
+本文档介绍 CivicSurvey Studio（问策 Insight）的三种部署方案：本地运行、Streamlit Community Cloud、云服务器部署。
 
 ---
 
@@ -11,6 +11,8 @@
 ### 安装
 
 ```bash
+git clone https://github.com/Clockworkhg/civic-survey-studio.git
+cd civic-survey-studio
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # macOS / Linux
@@ -27,6 +29,7 @@ streamlit run app.py
 
 ```bash
 run_app.bat                    # Windows
+start.bat                      # Windows 一键 venv + 安装 + 启动
 ```
 
 ### 访问
@@ -102,11 +105,11 @@ sudo apt update
 sudo apt install python3.12 python3.12-venv python3-pip -y
 
 # 2. 创建项目目录
-mkdir -p /opt/gov-satisfaction-ai-report
-cd /opt/gov-satisfaction-ai-report
+mkdir -p /opt/civic-survey-studio
+cd /opt/civic-survey-studio
 
-# 3. 克隆项目（或上传代码）
-git clone <your-repo-url> .
+# 3. 克隆项目
+git clone https://github.com/Clockworkhg/civic-survey-studio.git .
 
 # 4. 创建虚拟环境
 python3.12 -m venv .venv
@@ -147,7 +150,7 @@ nohup streamlit run app.py --server.port 8501 --server.address 0.0.0.0 > streaml
 sudo apt install nginx -y
 ```
 
-配置 `/etc/nginx/sites-available/streamlit`：
+配置 `/etc/nginx/sites-available/civic-survey`：
 
 ```nginx
 server {
@@ -169,26 +172,26 @@ server {
 启用配置：
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/streamlit /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/civic-survey /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
 ### 3.7 可选：systemd 服务
 
-创建 `/etc/systemd/system/streamlit.service`：
+创建 `/etc/systemd/system/civic-survey-studio.service`：
 
 ```ini
 [Unit]
-Description=Streamlit Gov Satisfaction App
+Description=CivicSurvey Studio
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/opt/gov-satisfaction-ai-report
-Environment="PATH=/opt/gov-satisfaction-ai-report/.venv/bin"
-ExecStart=/opt/gov-satisfaction-ai-report/.venv/bin/streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+WorkingDirectory=/opt/civic-survey-studio
+Environment="PATH=/opt/civic-survey-studio/.venv/bin"
+ExecStart=/opt/civic-survey-studio/.venv/bin/streamlit run app.py --server.port 8501 --server.address 0.0.0.0
 Restart=always
 
 [Install]
@@ -199,7 +202,7 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now streamlit
+sudo systemctl enable --now civic-survey-studio
 ```
 
 ---
@@ -218,8 +221,8 @@ sudo systemctl enable --now streamlit
 ### 预期启动命令
 
 ```bash
-docker build -t gov-satisfaction-ai-report .
-docker run -p 8501:8501 gov-satisfaction-ai-report
+docker build -t civic-survey-studio .
+docker run -p 8501:8501 civic-survey-studio
 ```
 
 容器化部署将在后续版本中正式支持。
@@ -228,8 +231,8 @@ docker run -p 8501:8501 gov-satisfaction-ai-report
 
 ## 安全提醒
 
-1. **不要在代码仓库中提交 API Key** — 使用环境变量或 Streamlit Secrets
+1. **不要把真实 API Key 写入镜像或仓库** — 使用环境变量或平台 secrets
 2. **不要上传包含真实个人隐私数据的文件** — 示例数据全部为模拟数据
-3. **生产环境建议启用 HTTPS** — 使用 Nginx + Let's Encrypt 或云厂商 SSL 证书
-4. **AI 功能依赖外部 API** — 确保服务器可以访问对应厂商的 API 域名
-5. **Streamlit 自带防护有限** — 如需公网访问，建议加一层认证（如 Nginx basic auth）
+3. **生产部署建议使用环境变量或平台 secrets**
+4. **Streamlit 自带防护有限** — 如需公网访问，建议加一层认证（如 Nginx basic auth）
+5. **AI 功能依赖外部 API** — 确保服务器可以访问对应厂商的 API 域名

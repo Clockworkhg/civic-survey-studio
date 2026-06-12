@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 echo.
 echo ================================================
-echo   Survey Data AI Analysis Platform
+echo   CivicSurvey Studio (问策 Insight)
 echo ================================================
 echo.
 

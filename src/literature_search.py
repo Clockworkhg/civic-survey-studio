@@ -44,7 +44,7 @@ _BACKOFF_BASE = 2.0
 _REQUEST_TIMEOUT = 25.0
 
 _USER_AGENT = (
-    "gov-satisfaction-ai-report/1.0 "
+    "civic-survey-studio/0.1.0 "
     "(mailto:research@example.com)"
 )
 

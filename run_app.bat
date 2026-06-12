@@ -1,6 +1,6 @@
 @echo off
 REM ================================================================
-REM  政府服务满意度问卷 AI 辅助统计分析与报告生成平台
+REM  CivicSurvey Studio (问策 Insight)
 REM  One-click launcher for Windows
 REM ================================================================
 

@@ -19,14 +19,17 @@ class TestLoadAppCss:
         assert len(APP_CSS) > 0
 
     def test_css_contains_key_classes(self):
-        """The CSS should contain key style classes used in app.py."""
+        """The CSS should contain key style classes used in app.py (v0.1.0 redesign)."""
         from src.ui.styles import load_app_css
         css = load_app_css()
-        assert ".main-title" in css
-        assert ".main-subtitle" in css
-        assert ".disclaimer" in css
+        # v0.1.0 redesign: replaced .main-title/.main-subtitle/.disclaimer with
+        # theme-based unified CSS. These legacy classes are no longer in CSS.
         assert ".section-divider" in css
-        assert ".stPlotlyChart" in css
+        assert ".card" in css
+        assert ".card-ai" in css
+        assert ".card-error" in css
+        assert "stTabs" in css
+        assert "stMetricValue" in css
 
     def test_css_contains_metric_container_styles(self):
         """The CSS should contain metric container customization."""

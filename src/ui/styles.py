@@ -39,6 +39,24 @@ section[data-testid="stAppViewContainer"] > .main {{
 }}
 
 /* ============================================================
+   主内容区宽度与间距
+   ============================================================ */
+
+/* 主内容容器 — 约束最大宽度，减少顶部空白 */
+.block-container {{
+    max-width: 1180px !important;
+    padding-top: 2rem !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}}
+
+/* Streamlit 全局 padding 缩减 */
+section[data-testid="stAppViewContainer"] .main .block-container {{
+    padding-top: 1.5rem !important;
+    max-width: 1180px !important;
+}}
+
+/* ============================================================
    标题与排版
    ============================================================ */
 
@@ -60,23 +78,52 @@ section[data-testid="stSidebar"] {{
     border-right: 1px solid {COLORS.border};
 }}
 
+section[data-testid="stSidebar"] .block-container {{
+    padding-top: 1rem !important;
+    padding-left: 1.2rem !important;
+    padding-right: 1.2rem !important;
+}}
+
 section[data-testid="stSidebar"] .stMarkdown {{
     font-size: 13px;
 }}
 
-section[data-testid="stSidebar"] h3 {{
+section[data-testid="stSidebar"] h2 {{
     font-size: 13px !important;
     font-weight: 600 !important;
     color: {COLORS.text_muted} !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-top: 20px;
+    margin-top: 16px;
+    margin-bottom: 4px;
+    padding: 0;
+}}
+
+section[data-testid="stSidebar"] h3 {{
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: {COLORS.text_muted} !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 14px;
+    margin-bottom: 2px;
 }}
 
 /* Sidebar divider */
 section[data-testid="stSidebar"] hr {{
     border-color: {COLORS.divider};
-    margin: 12px 0;
+    margin: 8px 0;
+}}
+
+/* Sidebar file uploader — compact */
+section[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] {{
+    padding: 8px !important;
+}}
+
+/* Sidebar caption — smaller */
+section[data-testid="stSidebar"] .st-caption {{
+    font-size: 11px !important;
+    color: {COLORS.text_subtle} !important;
 }}
 
 /* ============================================================

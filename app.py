@@ -129,7 +129,11 @@ if _using_example:
     raw_df = st.session_state.get("_example_raw_df")
     variable_df_generic = st.session_state.get("_example_var_dict_df")
     if raw_df is None:
-        st.error("示例数据加载失败，请检查 examples/ 目录。")
+        render_empty_state(
+            "示例数据加载失败",
+            "检查 examples/government_service_satisfaction_sample.csv 是否存在且格式正确。",
+            action_label="检查 examples/ 目录",
+        )
         st.stop()
     st.success(get_example_data_loaded_message())
     _current_file_key = "example_data_v1"
@@ -139,7 +143,11 @@ if _using_example:
 else:
     raw_df = load_generic_data(sb["generic_file"], sheet_name=sb["selected_sheet"], header_row=sb["header_row"])
     if raw_df is None:
-        st.error("数据加载失败，请检查文件格式。")
+        render_empty_state(
+            "数据加载失败",
+            "请确认文件格式正确（支持 .xlsx / .xls / .csv），并检查表头行设置。",
+            action_label="尝试重新上传或调整设置",
+        )
         st.stop()
     variable_df_generic = load_generic_variable_table(sb["var_table_file"]) if sb["var_table_file"] else None
     _current_file_key = f"{sb['generic_file'].name}_{sb['selected_sheet']}_{raw_df.shape}"
@@ -197,6 +205,16 @@ gen_ctx = AnalysisContext(
     user_analysis_config=config,
 )
 gen_ctx.build_type_maps()
+
+# ── v0.1.0: 从 session_state 同步持久化字段 ──
+gen_ctx.downstream_valid = st.session_state.get("_downstream_valid", True)
+gen_ctx.invalidation_reason = st.session_state.get("_invalidation_reason", "")
+gen_ctx.analysis_results = st.session_state.get("_analysis_results", {})
+gen_ctx.dashboard_charts = st.session_state.get("_dashboard_charts", [])
+gen_ctx.analysis_payload = st.session_state.get("_analysis_payload", None)
+gen_ctx.config_source = st.session_state.get("_config_source", "none")
+gen_ctx.config_applied_at = st.session_state.get("_config_applied_at", "")
+gen_ctx.warnings = st.session_state.get("_pipeline_warnings", [])
 auto_suggest_config_from_dict(gen_ctx)
 
 # ── 预设方案 ──

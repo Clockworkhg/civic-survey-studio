@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 import streamlit as st
 
 from src.ui.theme import (
@@ -184,29 +185,35 @@ def render_pipeline_status(
 
 
 def _resolve_pipeline_statuses(ctx: Any, steps: List[Dict[str, str]]) -> Dict[str, str]:
-    """根据上下文解析各步骤状态。"""
+    """根据上下文解析各步骤状态。
+
+    安全读取：ctx 可能为 None、SimpleNamespace 或缺少字段的旧版 AnalysisContext。
+    优先使用 ctx 属性，fallback 到 st.session_state。
+    """
     statuses: Dict[str, str] = {}
-    raw_df_loaded = False
-    schema_ready = False
-    config_ready = False
-    analysis_ready = False
-    report_ready = False
 
-    # 初始化所有变量
-    raw_df_loaded = False
-    schema_ready = False
-    config_ready = False
-    downstream_valid = True
-    analysis_exists = False
-    report_ready = False
-
-    # 从 ctx 或 session_state 推断
+    # ── 安全读取 ctx 或 session_state ──
     if ctx is not None:
-        raw_df_loaded = ctx.df is not None and len(ctx.df) > 0
-        schema_ready = ctx.variable_schema is not None and len(ctx.variable_schema) > 0
-        config_ready = bool(ctx.target or ctx.user_analysis_config.get("target_variable"))
-        downstream_valid = ctx.downstream_valid
-        analysis_exists = bool(ctx.analysis_results)
+        raw_df_loaded = (
+            getattr(ctx, "df", None) is not None
+            and len(getattr(ctx, "df", pd.DataFrame())) > 0
+        )
+        schema_df = getattr(ctx, "variable_schema", None)
+        schema_ready = schema_df is not None and len(schema_df) > 0
+        cfg = getattr(ctx, "user_analysis_config", {})
+        config_ready = bool(
+            getattr(ctx, "target", "")
+            or cfg.get("target_variable", "")
+        )
+        downstream_valid = getattr(
+            ctx, "downstream_valid",
+            st.session_state.get("_downstream_valid", True),
+        )
+        analysis_exists = bool(getattr(ctx, "analysis_results", {}))
+        report_ready = bool(
+            getattr(ctx, "analysis_payload", None)
+            or st.session_state.get("_generated_report")
+        )
     else:
         raw_df_loaded = bool(
             st.session_state.get("_last_file_key")
@@ -231,7 +238,7 @@ def _resolve_pipeline_statuses(ctx: Any, steps: List[Dict[str, str]]) -> Dict[st
     if analysis_exists and downstream_valid:
         statuses["analysis"] = "done"
     elif analysis_exists and not downstream_valid:
-        statuses["analysis"] = "warning"  # 结果存在但已失效
+        statuses["analysis"] = "warning"
     elif config_ready:
         statuses["analysis"] = "current"
     else:

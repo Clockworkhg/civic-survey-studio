@@ -126,6 +126,28 @@ section[data-testid="stSidebar"] .st-caption {{
     color: {COLORS.text_subtle} !important;
 }}
 
+/* Sidebar buttons — full width, uniform */
+section[data-testid="stSidebar"] .stButton > button {{
+    width: 100% !important;
+    font-size: 13px !important;
+}}
+
+/* Sidebar expander — no border, compact */
+section[data-testid="stSidebar"] .streamlit-expanderHeader {{
+    border: none !important;
+    background: transparent !important;
+    padding: 6px 0 !important;
+    font-size: 12px !important;
+}}
+
+/* Sidebar selectbox / input — compact */
+section[data-testid="stSidebar"] .stSelectbox label,
+section[data-testid="stSidebar"] .stTextInput label,
+section[data-testid="stSidebar"] .stNumberInput label {{
+    font-size: 12px !important;
+    color: {COLORS.text} !important;
+}}
+
 /* ============================================================
    Tab 导航栏
    ============================================================ */

@@ -1,5 +1,6 @@
-"""Tab 4: Visualization / chart dashboard.
+"""Visualization / chart dashboard.
 
+Rendered within Tab 4 (可视化仪表盘) of the 5-tab main workspace.
 Displays auto-generated dashboard charts and an optional free-form chart explorer.
 
 v0.1.0 Phase 2: Default mode reads from precomputed charts

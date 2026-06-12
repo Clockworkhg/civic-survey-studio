@@ -177,14 +177,39 @@ class TestAiReportErrorMessages:
 # ================================================================
 
 class TestBeginnerGuide:
-    def test_guide_has_six_steps(self):
+    def test_guide_does_not_contain_old_table(self):
+        """新首页不得包含旧流程词'快速上手指南'。"""
         guide = get_beginner_flow_guide()
-        assert "**1**" in guide
-        assert "**2**" in guide
-        assert "**3**" in guide
-        assert "**4**" in guide
-        assert "**5**" in guide
-        assert "**6**" in guide
+        assert "快速上手指南" not in guide, (
+            "新首页不应再出现旧'快速上手指南'表格。"
+        )
+
+    def test_guide_is_html_not_markdown_table(self):
+        """新首页是 HTML 卡片布局，不是 Markdown 表格。"""
+        guide = get_beginner_flow_guide()
+        # HTML 卡片特征：flex 布局、内联样式
+        assert "display:flex" in guide, "应为 HTML flex 布局"
+        assert "border-radius" in guide, "应为 HTML 卡片样式"
+        # 不应出现 Markdown 表格特征
+        assert "| ---" not in guide, "不应出现 Markdown 表格分隔线"
+        assert "| **" not in guide, "不应出现 Markdown 表格粗体"
+
+    def test_guide_contains_hero_title(self):
+        """首页包含 Hero 区主标题。"""
+        guide = get_beginner_flow_guide()
+        assert "政务数据分析工作台" in guide, "Hero 区域应包含主标题"
+
+    def test_guide_contains_three_cards(self):
+        """首页包含 3 张起步卡片。"""
+        guide = get_beginner_flow_guide()
+        for card_title in ["上传问卷数据", "加载示例数据", "配置 AI 报告"]:
+            assert card_title in guide, f"Missing card: {card_title}"
+
+    def test_guide_has_five_workflow_steps(self):
+        """首页包含 5 张工作流步骤卡片。"""
+        guide = get_beginner_flow_guide()
+        for step in ["数据与变量", "分析方案", "统计分析", "可视化仪表盘", "报告工作台"]:
+            assert step in guide, f"Missing workflow step: {step}"
 
     def test_guide_mentions_no_api_key(self):
         guide = get_beginner_flow_guide()
@@ -193,6 +218,11 @@ class TestBeginnerGuide:
     def test_guide_mentions_example_data(self):
         guide = get_beginner_flow_guide()
         assert "示例数据" in guide
+
+    def test_guide_mentions_csv_excel(self):
+        """首页提到支持的文件格式。"""
+        guide = get_beginner_flow_guide()
+        assert "CSV" in guide and "Excel" in guide, "应提到支持的格式"
 
 
 # ================================================================
@@ -206,7 +236,7 @@ class TestExampleDataMessages:
 
     def test_loaded_message_mentions_next_steps(self):
         msg = get_example_data_loaded_message()
-        assert "变量识别" in msg or "分析配置" in msg
+        assert "数据与变量" in msg or "分析方案" in msg
 
     def test_not_found_message_mentions_file_paths(self):
         msg = get_example_data_not_found_message()

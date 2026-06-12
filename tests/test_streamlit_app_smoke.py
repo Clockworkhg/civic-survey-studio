@@ -109,23 +109,43 @@ class TestHomepageContent:
         )
 
     def test_homepage_contains_beginner_guide(self, at_landing):
-        """Landing 页面显示快速上手指南。"""
+        """Landing 页面显示产品化首页（英雄区 + 卡片 + 工作流）。"""
         all_text = _collect_all_markdown_text(at_landing)
         guide_hits = sum(
             1
-            for kw in ["上传数据", "变量识别", "统计分析", "AI 报告", "快速上手"]
+            for kw in [
+                "上传问卷数据", "加载示例数据", "配置 AI 报告",
+                "数据与变量", "分析方案", "统计分析",
+                "可视化仪表盘", "报告工作台", "政务数据分析工作台",
+            ]
             if kw in all_text
         )
-        assert guide_hits >= 2, (
-            f"快速上手指南关键词命中不足（{guide_hits}/5）。"
+        assert guide_hits >= 4, (
+            f"首页关键词命中不足（{guide_hits}/9）。"
             f"页面文本前 500 字: {all_text[:500]}"
+        )
+
+    def test_homepage_does_not_contain_old_terms(self, at_landing):
+        """新首页不得包含旧流程词。"""
+        all_text = _collect_all_markdown_text(at_landing)
+        old_terms = ["快速上手指南", "变量识别", "Tab 10", "AI 智能分析"]
+        found = [t for t in old_terms if t in all_text]
+        assert not found, (
+            f"首页包含已废弃的旧术语: {found}"
+        )
+
+    def test_homepage_contains_csv_excel(self, at_landing):
+        """首页提到支持的文件格式。"""
+        all_text = _collect_all_markdown_text(at_landing)
+        assert "CSV" in all_text or "Excel" in all_text, (
+            f"首页应提到支持的文件格式。页面文本前 500 字: {all_text[:500]}"
         )
 
     def test_homepage_shows_no_api_key_stop_notice(self, at_landing):
         """Landing 页面显示文件上传指引（st.stop 之后的内容）。"""
         all_text = _collect_all_markdown_text(at_landing)
         assert "上传" in all_text or "示例数据" in all_text or "侧边栏" in all_text, (
-            "Landing 页面应显示文件上传指引或快速上手指南。"
+            "Landing 页面应显示产品化引导内容。"
         )
 
 
@@ -141,7 +161,7 @@ class TestSidebar:
         """侧边栏有文件上传控件。"""
         sidebar_text = _collect_sidebar_text(at_landing)
         assert (
-            "数据上传" in sidebar_text
+            "数据源" in sidebar_text
             or "问卷数据" in sidebar_text
             or "generic_data" in str(at_landing.sidebar)
         ), f"侧边栏未找到文件上传区域。文本前 300 字: {sidebar_text[:300]}"
@@ -161,8 +181,38 @@ class TestSidebar:
     def test_sidebar_contains_preset_profile_entry(self, at_landing):
         """侧边栏有预设方案入口。"""
         sidebar_text = _collect_sidebar_text(at_landing)
-        assert "预设方案" in sidebar_text or "分析配置" in sidebar_text, (
-            "侧边栏未找到预设方案/分析配置入口。"
+        assert "预设方案" in sidebar_text or "分析方案" in sidebar_text, (
+            "侧边栏未找到预设方案入口。"
+        )
+
+    def test_sidebar_contains_ai_settings_section(self, at_landing):
+        """侧边栏包含 AI 设置区（含 API Key、模型、测试连接）。"""
+        sidebar_text = _collect_sidebar_text(at_landing)
+        ai_hits = sum(
+            1
+            for kw in ["AI 设置", "API Key", "测试连接"]
+            if kw in sidebar_text
+        )
+        assert ai_hits >= 2, (
+            f"侧边栏 AI 设置区不完整（{ai_hits}/3）。"
+            f"侧边栏文本: {sidebar_text[:500]}"
+        )
+
+    def test_sidebar_contains_current_status(self, at_landing):
+        """侧边栏包含当前状态区。"""
+        sidebar_text = _collect_sidebar_text(at_landing)
+        assert "当前状态" in sidebar_text, (
+            f"侧边栏未找到'当前状态'区。文本前 300 字: {sidebar_text[:300]}"
+        )
+
+    def test_sidebar_does_not_contain_emoji_headers(self, at_landing):
+        """侧边栏不包含旧的 emoji 标题。"""
+        sidebar_text = _collect_sidebar_text(at_landing)
+        emoji_headers = ["📁 数据上传", "📖 变量说明表", "📦 示例数据",
+                         "🎯 预设方案", "⚙️ 分析配置"]
+        found = [h for h in emoji_headers if h in sidebar_text]
+        assert not found, (
+            f"侧边栏仍包含旧 emoji 标题: {found}"
         )
 
 

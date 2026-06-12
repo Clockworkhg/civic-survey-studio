@@ -21,7 +21,7 @@ from src.analysis_context import AnalysisContext
 
 # ── UI 模块 ──
 from src.ui.state import init_session_state
-from src.ui.sidebar import render_sidebar, render_api_sidebar_section
+from src.ui.sidebar import render_sidebar
 from src.ui.styles import inject_app_css
 from src.ui.analysis_helpers import auto_suggest_config_from_dict
 from src.ui.messages import get_beginner_flow_guide, get_example_data_loaded_message
@@ -73,7 +73,6 @@ init_session_state()
 # 侧边栏（全局输入）
 # ================================================================
 sb = render_sidebar()
-render_api_sidebar_section()
 
 
 # ================================================================
@@ -85,13 +84,15 @@ render_page_header(
     step="",
 )
 
-# ── 免责声明（始终显示）──
-st.markdown(
-    f'<div style="font-size:11px;color:{COLORS.text_subtle};margin-bottom:16px;line-height:1.6;">'
-    '本平台用于辅助统计分析和报告生成。统计关联不等于因果关系，分析结果需结合实际情况进行人工判断。'
-    '</div>',
-    unsafe_allow_html=True,
-)
+# ── 免责声明（有数据时显示；无数据时英雄区已包含）──
+_has_data = sb["generic_file"] is not None or st.session_state.get("_use_example_data", False)
+if _has_data:
+    st.markdown(
+        f'<div style="font-size:11px;color:{COLORS.text_subtle};margin-bottom:16px;line-height:1.6;">'
+        '本平台用于辅助统计分析和报告生成。统计关联不等于因果关系，分析结果需结合实际情况进行人工判断。'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 
 # ================================================================
@@ -117,8 +118,7 @@ _using_example = st.session_state.get("_use_example_data", False)
 
 # ── 无数据：引导页 ──
 if sb["generic_file"] is None and not _using_example:
-    render_section("开始使用")
-    st.markdown(get_beginner_flow_guide())
+    st.markdown(get_beginner_flow_guide(), unsafe_allow_html=True)
     st.stop()
 
 

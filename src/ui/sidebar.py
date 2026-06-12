@@ -13,7 +13,17 @@ import streamlit as st
 from src.data_loader import get_excel_sheets
 from src.preset_profiles import list_profiles as list_preset_profiles
 from src.ui.example_data import example_data_available
-from src.ui.messages import get_example_data_loaded_message, get_example_data_not_found_message
+from src.ui.theme import COLORS
+
+
+def _section_label(text: str) -> None:
+    """Render a compact, muted sidebar section label (no emoji)."""
+    st.markdown(
+        f'<div style="font-size:10px;color:{COLORS.text_muted};'
+        f'text-transform:uppercase;letter-spacing:1px;'
+        f'margin-top:18px;margin-bottom:4px;font-weight:600;">{text}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_sidebar() -> Dict[str, Any]:
@@ -22,9 +32,6 @@ def render_sidebar() -> Dict[str, Any]:
     Uses ``with st.sidebar:`` internally. Call once per app execution,
     after page config but before main content that references the
     sidebar values.
-
-    Widget keys are preserved exactly as they were when the sidebar
-    was inline in app.py.
 
     Returns:
         {
@@ -40,7 +47,10 @@ def render_sidebar() -> Dict[str, Any]:
     load_example_clicked = False
 
     with st.sidebar:
-        st.markdown("## 📁 数据上传")
+        # ═══════════════════════════════════════════
+        # Section 1: Data Source
+        # ═══════════════════════════════════════════
+        _section_label("数据源")
 
         generic_file = st.file_uploader(
             "问卷数据文件",
@@ -49,52 +59,59 @@ def render_sidebar() -> Dict[str, Any]:
             help="支持 Excel（.xlsx/.xls）和 CSV（.csv）格式。",
         )
 
-        # Sheet 选择（仅 Excel）
+        # Sheet selector (Excel only)
         selected_sheet = None
         if generic_file and generic_file.name.endswith((".xlsx", ".xls")):
             sheets = get_excel_sheets(generic_file)
             if sheets:
                 selected_sheet = st.selectbox(
-                    "选择工作表（Sheet）：",
+                    "工作表（Sheet）",
                     sheets,
                     key="sheet_selector",
                 )
             else:
                 st.caption("未能读取工作表列表，将使用第一个工作表。")
 
-        # 表头行
+        # Header row
         header_row = st.number_input(
             "表头所在行",
             min_value=0, max_value=10, value=0,
-            help="0 表示第一行，1 表示第二行，以此类推。",
+            help="0 = 第一行，1 = 第二行",
             key="header_row",
         )
 
-        # ── 示例数据入口 ──
+        # Example data button (compact, only when no file)
         if not generic_file:
-            st.markdown("---")
-            st.markdown("## 📦 示例数据")
-            st.caption("没有数据？加载内置模拟数据快速体验完整流程。")
+            st.markdown(
+                f'<div style="font-size:11px;color:{COLORS.text_muted};'
+                f'margin-top:8px;margin-bottom:4px;">没有数据？可加载内置模拟数据体验</div>',
+                unsafe_allow_html=True,
+            )
             if example_data_available():
-                if st.button("📥 加载内置示例数据", key="load_example_btn",
-                             help="加载政府服务满意度模拟数据（150 条，无真实个人信息）"):
+                if st.button("加载内置示例数据", key="load_example_btn",
+                             help="加载政府服务满意度模拟数据（无真实个人信息）"):
                     load_example_clicked = True
             else:
-                st.caption("⚠️ 示例数据文件未找到。你仍然可以上传自己的数据文件。")
+                st.caption("示例数据文件未找到，你仍可上传自己的数据。")
 
-        st.markdown("---")
-        st.markdown("## 📖 变量说明表（可选）")
+        # ═══════════════════════════════════════════
+        # Section 2: Variable Dictionary
+        # ═══════════════════════════════════════════
+        _section_label("变量说明表")
+        st.caption("可选，上传后增强变量识别精度。")
 
         var_table_file = st.file_uploader(
-            "变量说明表（可选）",
+            "变量说明表文件",
             type=["xlsx", "xls", "csv"],
             key="generic_var_table",
-            help="包含变量名、中文含义、类型等信息的说明表。如不上传，系统将自动推断变量类型。",
+            label_visibility="collapsed",
         )
 
-        st.markdown("---")
-        st.markdown("## 🎯 预设方案（可选）")
-        st.caption("选择预设分析方案可自动填充分析配置。")
+        # ═══════════════════════════════════════════
+        # Section 3: Preset Plans
+        # ═══════════════════════════════════════════
+        _section_label("预设方案")
+        st.caption("选择预设方案后自动填充分析配置。")
 
         try:
             profile_list = list_preset_profiles()
@@ -103,12 +120,13 @@ def render_sidebar() -> Dict[str, Any]:
                 profile_options[p.get("profile_name", p.get("profile_key", ""))] = p
             profile_names = list(profile_options.keys())
             selected_profile_name = st.selectbox(
-                "预设方案：", profile_names,
+                "预设方案",
+                profile_names,
                 key="preset_profile_selector",
+                label_visibility="collapsed",
             )
             selected_profile = profile_options.get(selected_profile_name)
             if selected_profile:
-                st.success(f"✅ 已加载「{selected_profile_name}」预设方案")
                 gov_profile = selected_profile
                 profile_key = selected_profile.get("profile_key", "")
             else:
@@ -117,14 +135,40 @@ def render_sidebar() -> Dict[str, Any]:
         except Exception:
             gov_profile = None
             profile_key = ""
-            st.caption("（无可用预设方案）")
+            st.caption("无可用预设方案。")
 
-        st.markdown("---")
-        st.markdown("## ⚙️ 分析配置")
-        st.caption("上传数据后在此配置分析参数。")
+        # ═══════════════════════════════════════════
+        # Section 4: AI Settings
+        # ═══════════════════════════════════════════
+        from src.ui.api_config import render_api_config_section
+        has_api_key = bool(st.session_state.get("_api_key", ""))
+        with st.expander("AI 设置", expanded=not has_api_key):
+            st.caption(
+                "本地统计分析不需要 API Key。"
+                "AI 报告需要配置 API Key。"
+            )
+            render_api_config_section(location="sidebar")
 
-        st.markdown("---")
-        st.caption("通用问卷数据 AI 分析平台 v3.0")
+        # ═══════════════════════════════════════════
+        # Section 5: Current Status
+        # ═══════════════════════════════════════════
+        _section_label("当前状态")
+        _data_loaded = generic_file is not None or st.session_state.get("_use_example_data", False)
+        _config_set = bool(st.session_state.get("generic_config", {}).get("target_variable", ""))
+        _analysis_done = (
+            st.session_state.get("_downstream_valid", False)
+            and bool(st.session_state.get("_analysis_results", {}))
+        )
+        status_color = COLORS.success if has_api_key else COLORS.text_muted
+        st.markdown(
+            f'<div style="font-size:11px;line-height:1.8;color:{COLORS.text_muted};">'
+            f'数据：{"✅ 已加载" if _data_loaded else "⏸ 未加载"}<br>'
+            f'方案：{"✅ 已配置" if _config_set else "⏸ 未配置"}<br>'
+            f'分析：{"✅ 已完成" if _analysis_done else "⏸ 未执行"}<br>'
+            f'AI：{"✅ 已配置" if has_api_key else "⏸ 未配置"}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     return {
         "generic_file": generic_file,
@@ -138,14 +182,8 @@ def render_sidebar() -> Dict[str, Any]:
 
 
 def render_api_sidebar_section() -> None:
-    """Render the AI API configuration section inside a sidebar expander.
+    """No-op: AI config is now rendered inline by render_sidebar().
 
-    Auto-expands when no API key is configured; collapses once configured.
+    Kept for backward compatibility with existing callers.
     """
-    from src.ui.api_config import render_api_config_section
-
-    with st.sidebar:
-        st.markdown("---")
-        has_key = bool(st.session_state.get("_api_key", ""))
-        with st.expander("🤖 AI API 设置", expanded=not has_key):
-            render_api_config_section(location="sidebar")
+    pass

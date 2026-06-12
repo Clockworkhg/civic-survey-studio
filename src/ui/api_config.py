@@ -10,9 +10,6 @@ Usage::
     from src.ui.api_config import render_api_config_section
     render_api_config_section()           # standalone
     render_api_config_section(location="sidebar")  # inside st.sidebar
-
-All widget keys and session_state keys are preserved from the original
-Tab 10 implementation.
 """
 
 from __future__ import annotations
@@ -56,7 +53,7 @@ def render_api_config_section(location: str = "inline") -> None:
     """Render AI API configuration: provider, key, model, connection test.
 
     Writes the following session_state keys (identical to the original
-    Tab 10 behaviour):
+    preserved behaviour):
 
     - ``_api_key``
     - ``_provider_key``
@@ -124,7 +121,7 @@ def render_api_config_section(location: str = "inline") -> None:
     model_list_cfg = provider_config.get("model_list", {})
 
     # 显示厂商信息
-    with st.expander("📋 厂商配置详情", expanded=False):
+    with st.expander("厂商配置详情", expanded=False):
         st.json({
             "display_name": selected_display,
             "protocol": protocol,
@@ -242,14 +239,17 @@ def render_api_config_section(location: str = "inline") -> None:
     # ── 记住设置 ──
     saved_remember = st.session_state.get("_saved_remember", False)
     remember_me = st.checkbox(
-        "💾 记住设置（API Key 将以明文保存在本地文件中，仅建议在个人设备上使用）",
+        "记住设置（API Key 将以明文保存在本地文件中，仅建议在个人设备上使用）",
         value=saved_remember,
         key="gen_remember_me",
     )
     st.session_state["_saved_remember"] = remember_me
 
     if not resolved_api_key:
-        st.info(get_no_api_key_message(api_key_env))
+        if location == "sidebar":
+            st.caption("请在下方输入 API Key 并选择模型。")
+        else:
+            st.info(get_no_api_key_message(api_key_env))
 
     # ============================================
     # 模型选择区域
@@ -293,7 +293,7 @@ def render_api_config_section(location: str = "inline") -> None:
         col_fetch1, col_fetch2 = st.columns([1, 2] if location == "sidebar" else [1, 3])
         with col_fetch1:
             fetch_btn = st.button(
-                "🌐 联网获取模型列表",
+                "联网获取模型列表",
                 key="ai_fetch_models",
                 disabled=not bool(resolved_api_key),
                 help="需要先输入 API Key" if not resolved_api_key else "从 API 获取最新模型列表",
@@ -400,7 +400,7 @@ def render_api_config_section(location: str = "inline") -> None:
 
         else:
             if not resolved_api_key:
-                st.caption("💡 输入 API Key 后可联网获取模型列表")
+                st.caption("输入 API Key 后可联网获取模型列表")
             selected_model = st.text_input(
                 "模型名：",
                 value=default_model,
@@ -412,7 +412,7 @@ def render_api_config_section(location: str = "inline") -> None:
     # ── 不支持联网获取的厂商 ──
     else:
         if ml_note:
-            st.info(f"💡 {ml_note}")
+            st.caption(ml_note)
         selected_model = st.text_input(
             "模型名（手动输入）：",
             value=default_model,
@@ -437,7 +437,7 @@ def render_api_config_section(location: str = "inline") -> None:
         st.markdown("#### 4. 测试连接")
     tc1, tc2 = st.columns([1, 2] if location == "sidebar" else [1, 3])
     with tc1:
-        test_btn = st.button("🔌 测试连接", key="ai_test_connection", use_container_width=True)
+        test_btn = st.button("测试连接", key="ai_test_connection", use_container_width=True)
     with tc2:
         test_placeholder = st.empty()
 

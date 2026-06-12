@@ -1,5 +1,6 @@
-"""Tab 9: Template-based report generation (non-AI).
+"""Template-based report generation (non-AI).
 
+Rendered within Tab 5 (报告工作台) of the 5-tab main workspace.
 Generates HTML and DOCX reports using statistical templates
 without calling an external LLM.
 """
@@ -35,7 +36,7 @@ def render_tab_template_report(
 
     target = config.get("target_variable", "")
     if not target:
-        st.warning("⚠️ 请在「分析配置」标签页中至少指定核心结果变量，以获得完整的分析报告。")
+        st.warning("请在「分析方案」标签页中至少指定核心结果变量，以获得完整的分析报告。")
 
     report_format_generic = st.radio(
         "报告格式：",

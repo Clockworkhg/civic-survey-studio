@@ -1,8 +1,8 @@
-"""Tab 10: AI Intelligent Analysis — provider config, model selection,
+"""AI Intelligent Analysis — provider config, model selection,
 literature search, background research, payload generation, AI report generation.
 
-This module extracts the full Tab 10 UI from app.py into a standalone render
-function.  No user-visible behaviour, widget keys, or session_state keys are
+Rendered within Tab 5 (报告工作台) of the 5-tab main workspace.
+No user-visible behaviour, widget keys, or session_state keys are
 changed.
 """
 
@@ -74,7 +74,7 @@ def apply_pending_blueprint_to_widget_state() -> None:
     pending blueprint exists the call is a cheap no-op.
 
     This is the safe counterpart to setting widget keys inside a button
-    handler — by the time a button handler runs, Tab 4 widgets have already
+    handler — by the time a button handler runs, analysis config widgets have already
     been instantiated and Streamlit rejects direct writes to their keys.
     """
     pending = st.session_state.pop("_pending_ai_blueprint_apply", None)
@@ -172,7 +172,7 @@ def render_tab_ai_analysis(
     precomputed_analysis_results: Optional[Dict[str, Any]] = None,
     downstream_valid: bool = True,
 ) -> None:
-    """Render Tab 10: AI Intelligent Analysis.
+    """Render AI Intelligent Analysis section (Tab 5: 报告工作台).
 
     Parameters
     ----------

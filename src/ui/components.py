@@ -384,7 +384,7 @@ def render_config_summary(
     config: Dict[str, Any],
     schema_df: Any = None,
 ) -> None:
-    """渲染当前分析方案摘要卡片。
+    """渲染当前分析方案摘要 — 四张卡片并排。
 
     Args:
         config: 分析配置字典 (generic_config)
@@ -410,45 +410,115 @@ def render_config_summary(
             return f"{cn} ({col})"
         return col
 
-    rows = []
-    if title:
-        rows.append(
-            f'<tr><td style="color:{COLORS.text_muted};padding:3px 12px 3px 0;'
-            f'font-size:13px;white-space:nowrap;">报告标题</td>'
-            f'<td style="color:{COLORS.text};font-size:13px;padding:3px 0;">'
-            f'{_html_safe(title)}</td></tr>'
+    def _badge_set(text: str) -> str:
+        return (
+            f'<span style="display:inline-block;background:{COLORS.primary_soft};'
+            f'color:{COLORS.primary};padding:1px 8px;border-radius:{RADIUS["pill"]};'
+            f'font-size:11px;font-weight:500;white-space:nowrap;">'
+            f'{_html_safe(text)}</span>'
         )
-    rows.append(
-        f'<tr><td style="color:{COLORS.text_muted};padding:3px 12px 3px 0;'
-        f'font-size:13px;white-space:nowrap;">核心变量</td>'
-        f'<td style="color:{COLORS.text};font-size:13px;padding:3px 0;">'
-        + (f'<b>{_html_safe(_label(target))}</b>' if target else
-           f'<span style="color:{COLORS.error};">未设置</span>')
-        + '</td></tr>'
+
+    def _badge_unset() -> str:
+        return (
+            f'<span style="display:inline-block;background:{COLORS.surface_subtle};'
+            f'color:{COLORS.text_subtle};padding:1px 8px;border-radius:{RADIUS["pill"]};'
+            f'font-size:11px;white-space:nowrap;">未设置</span>'
+        )
+
+    card_css = _card_css(CARD_STYLE)
+    card_style = f"flex:1;min-width:160px;{card_css}"
+
+    # ── Card 1: 报告标题 ──
+    if title:
+        title_body = (
+            f'<span style="font-size:14px;color:{COLORS.text};font-weight:500;">'
+            f'{_html_safe(title)}</span>'
+        )
+    else:
+        title_body = (
+            f'<span style="font-size:14px;color:{COLORS.text_subtle};">'
+            f'问卷数据分析报告</span>'
+        )
+    title_card = (
+        f'<div style="{card_style}min-width:200px;">'
+        f'<div style="font-size:10px;color:{COLORS.text_muted};text-transform:uppercase;'
+        f'letter-spacing:0.5px;margin-bottom:6px;">报告标题</div>'
+        f'{title_body}'
+        f'</div>'
     )
-    rows.append(
-        f'<tr><td style="color:{COLORS.text_muted};padding:3px 12px 3px 0;'
-        f'font-size:13px;white-space:nowrap;">分组变量</td>'
-        f'<td style="color:{COLORS.text};font-size:13px;padding:3px 0;">'
-        + (", ".join(_label(g) for g in groups) if groups else
-           f'<span style="color:{COLORS.text_subtle};">未设置</span>')
-        + '</td></tr>'
+
+    # ── Card 2: 核心变量 ──
+    if target:
+        target_body = (
+            f'<div style="font-size:14px;color:{COLORS.text};font-weight:500;'
+            f'margin-bottom:6px;">{_html_safe(_label(target))}</div>'
+            f'{_badge_set("已设置")}'
+        )
+    else:
+        target_body = (
+            f'<div style="font-size:14px;color:{COLORS.text_subtle};'
+            f'margin-bottom:6px;">—</div>'
+            f'{_badge_unset()}'
+        )
+    target_card = (
+        f'<div style="{card_style}">'
+        f'<div style="font-size:10px;color:{COLORS.text_muted};text-transform:uppercase;'
+        f'letter-spacing:0.5px;margin-bottom:6px;">核心变量</div>'
+        f'{target_body}'
+        f'</div>'
     )
-    rows.append(
-        f'<tr><td style="color:{COLORS.text_muted};padding:3px 12px 3px 0;'
-        f'font-size:13px;white-space:nowrap;">解释变量</td>'
-        f'<td style="color:{COLORS.text};font-size:13px;padding:3px 0;">'
-        + (", ".join(_label(e) for e in expl) if expl else
-           f'<span style="color:{COLORS.text_subtle};">未设置</span>')
-        + '</td></tr>'
+
+    # ── Card 3: 分组变量 ──
+    if groups:
+        group_names = "、".join(_label(g) for g in groups)
+        group_body = (
+            f'<div style="font-size:14px;color:{COLORS.text};font-weight:500;'
+            f'margin-bottom:6px;">{_html_safe(group_names)}</div>'
+            f'{_badge_set(f"{len(groups)} 个")}'
+        )
+    else:
+        group_body = (
+            f'<div style="font-size:14px;color:{COLORS.text_subtle};'
+            f'margin-bottom:6px;">—</div>'
+            f'{_badge_unset()}'
+        )
+    group_card = (
+        f'<div style="{card_style}">'
+        f'<div style="font-size:10px;color:{COLORS.text_muted};text-transform:uppercase;'
+        f'letter-spacing:0.5px;margin-bottom:6px;">分组变量</div>'
+        f'{group_body}'
+        f'</div>'
+    )
+
+    # ── Card 4: 解释变量 ──
+    if expl:
+        expl_names = "、".join(_label(e) for e in expl)
+        expl_body = (
+            f'<div style="font-size:14px;color:{COLORS.text};font-weight:500;'
+            f'margin-bottom:6px;">{_html_safe(expl_names)}</div>'
+            f'{_badge_set(f"{len(expl)} 个")}'
+        )
+    else:
+        expl_body = (
+            f'<div style="font-size:14px;color:{COLORS.text_subtle};'
+            f'margin-bottom:6px;">—</div>'
+            f'{_badge_unset()}'
+        )
+    expl_card = (
+        f'<div style="{card_style}">'
+        f'<div style="font-size:10px;color:{COLORS.text_muted};text-transform:uppercase;'
+        f'letter-spacing:0.5px;margin-bottom:6px;">解释变量</div>'
+        f'{expl_body}'
+        f'</div>'
     )
 
     html = (
-        f'<div style="{_card_css(CARD_STYLE)}margin-bottom:16px;">'
+        f'<div style="margin-bottom:16px;">'
         f'<div style="font-size:14px;font-weight:600;color:{COLORS.text};'
-        f'margin-bottom:8px;">当前分析方案</div>'
-        f'<table style="border-collapse:collapse;">{"".join(rows)}</table>'
-        f'</div>'
+        f'margin-bottom:10px;">当前分析方案</div>'
+        f'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+        f'{title_card}{target_card}{group_card}{expl_card}'
+        f'</div></div>'
     )
     st.markdown(html, unsafe_allow_html=True)
 

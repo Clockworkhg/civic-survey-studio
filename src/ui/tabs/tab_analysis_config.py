@@ -1,5 +1,6 @@
-"""Tab 4: Analysis configuration.
+"""Analysis configuration.
 
+Rendered within Tab 2 (分析方案) of the 5-tab main workspace.
 UI for setting the analysis target variable, group variables, explanatory
 variables, and report generation options.
 """
@@ -52,12 +53,23 @@ def render_tab_analysis_config(
             schema_df["inferred_type"].isin(["numeric", "categorical", "ordinal"])
         ]["column"].tolist()
 
+    # ── 获取当前配置值 ──
+    current_target = config.get("target_variable", "")
+    current_groups = config.get("group_variables") or []
+    current_expls = config.get("explanatory_variables") or []
+
+    # ── 确保当前配置值始终在候选列表中 ──
+    # （即使其 inferred_type 不在过滤范围内，或是被 AI blueprint 设置的
+    #  非标准类型变量，也不能让控件因为找不到选项而回退到空值）
+    _all_known_cols = list(type_map.keys())
+    if current_target and current_target in _all_known_cols and current_target not in analyzable_cols:
+        analyzable_cols = [current_target] + list(analyzable_cols)
+
     col_cfg1, col_cfg2 = st.columns(2)
     with col_cfg1:
         target_options = [""] + analyzable_cols
-        current_target = config.get("target_variable", "")
         target_idx = target_options.index(current_target) if current_target in target_options else 0
-        config["target_variable"] = st.selectbox(
+        widget_target = st.selectbox(
             "核心结果变量（Target）",
             target_options,
             index=target_idx,
@@ -68,16 +80,27 @@ def render_tab_analysis_config(
             ),
             help="分析的核心变量，如「总体满意度」、「购买意愿」等。",
         )
+        # ── 防止控件回退到空值覆盖已有配置 ──
+        if widget_target:
+            config["target_variable"] = widget_target
+        elif not current_target:
+            config["target_variable"] = ""
+        # else: 控件回退到了空值但 config 已有合法值 → 保留原值
+
     with col_cfg2:
         st.caption("")
         st.caption("")
 
     # ── 分组变量 ──
     group_variable_options = [c for c in analyzable_cols if type_map.get(c) in ("categorical", "ordinal")]
-    saved_group_vars = config.get("group_variables") or []
+    # 确保当前分组变量在选项中
+    for v in current_groups:
+        if v not in group_variable_options and v in _all_known_cols:
+            group_variable_options.append(v)
+    saved_group_vars = current_groups
     valid_group_defaults = [v for v in saved_group_vars if v in group_variable_options]
 
-    config["group_variables"] = st.multiselect(
+    widget_groups = st.multiselect(
         "分组变量（Group）",
         options=group_variable_options,
         default=valid_group_defaults,
@@ -85,13 +108,29 @@ def render_tab_analysis_config(
         format_func=lambda c: f"{c}（{cn_map.get(c, '')}）[{type_map.get(c, '')}]",
         help="用于群体差异分析的分类变量，如「性别」、「区域」等。最多建议 5 个。",
     )
+    # ── 防止多选控件丢失已有配置 ──
+    # 如果 cfg_groups 的 session_state 值与 widget 返回值不一致
+    # （例如某些变量不在选项中），合并两者
+    cfg_groups_state = st.session_state.get("cfg_groups")
+    if cfg_groups_state and isinstance(cfg_groups_state, list):
+        merged = list(dict.fromkeys(list(widget_groups) + list(cfg_groups_state)))
+        valid_merged = [v for v in merged if v in _all_known_cols]
+        config["group_variables"] = valid_merged
+    else:
+        config["group_variables"] = widget_groups
 
     # ── 解释变量 ──
-    explanatory_options = [c for c in analyzable_cols if c != config.get("target_variable", "")]
-    saved_expl_vars = config.get("explanatory_variables") or []
+    # 根据当前 target 动态排除
+    _exclude_target = widget_target or current_target
+    explanatory_options = [c for c in analyzable_cols if c != _exclude_target]
+    # 确保当前解释变量在选项中
+    for v in current_expls:
+        if v not in explanatory_options and v in _all_known_cols:
+            explanatory_options.append(v)
+    saved_expl_vars = current_expls
     valid_expl_defaults = [v for v in saved_expl_vars if v in explanatory_options]
 
-    config["explanatory_variables"] = st.multiselect(
+    widget_expls = st.multiselect(
         "解释变量（Predictors）",
         options=explanatory_options,
         default=valid_expl_defaults,
@@ -99,6 +138,14 @@ def render_tab_analysis_config(
         format_func=lambda c: f"{c}（{cn_map.get(c, '')}）[{type_map.get(c, '')}]",
         help="用于相关分析和回归分析的自变量。",
     )
+    # ── 防止多选控件丢失已有配置 ──
+    cfg_expl_state = st.session_state.get("cfg_expl")
+    if cfg_expl_state and isinstance(cfg_expl_state, list):
+        merged = list(dict.fromkeys(list(widget_expls) + list(cfg_expl_state)))
+        valid_merged = [v for v in merged if v in _all_known_cols]
+        config["explanatory_variables"] = valid_merged
+    else:
+        config["explanatory_variables"] = widget_expls
 
     # 报告格式
     st.markdown("---")

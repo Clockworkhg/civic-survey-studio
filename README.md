@@ -15,11 +15,12 @@
 | [部署说明](docs/deployment.md) | 本地 / Streamlit Cloud / 云服务器部署 |
 | [发布检查清单](docs/release_checklist.md) | v0.1.0 发布前逐项确认 |
 | [安全说明](docs/security.md) | 数据隐私、API Key 安全、发布前检查 |
+| [前端验收](docs/frontend_acceptance.md) | 浏览器手动验收清单 |
 | [变更日志](CHANGELOG.md) | 版本更新记录 |
 | [路线图](docs/roadmap.md) | 未来版本规划（v0.2.0 → v1.0.0） |
 | [已知问题](docs/known_issues.md) | 当前版本限制与注意事项 |
 | [AI 使用指南](AI_USAGE.md) | AI 报告功能介绍与配置 |
-| [测试指南](TESTING.md) | 四类场景手动测试说明 |
+| [测试指南](TESTING.md) | 测试类型说明与手动测试指南 |
 
 ## 示例数据
 
@@ -332,8 +333,17 @@ cp .env.example .env
 
 本项目配置了 GitHub Actions（`.github/workflows/tests.yml`），在每次 push 和 pull request 时自动运行：
 
-- `python -m pytest tests/ -v`
+- `python -m pytest tests/ -v`（含 AppTest 前端烟雾测试）
 - `python test_run4.py`
+
+本地完整测试命令：
+
+```bash
+python -m pytest tests/ -v                        # 全部测试（含 AppTest）
+python -m pytest tests/test_streamlit_app_smoke.py -v  # 仅 AppTest 前端烟雾测试
+python test_run4.py                               # 集成测试
+python scripts/release_check.py                   # 发布前静态检查
+```
 
 CI 使用 Python 3.12，不访问真实外部 API。
 

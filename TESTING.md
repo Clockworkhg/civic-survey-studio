@@ -357,14 +357,34 @@ tests/test_data/
 
 ---
 
+## 测试类型说明
+
+本项目包含以下测试层级：
+
+| 测试类型 | 覆盖范围 | 运行方式 |
+|----------|----------|----------|
+| **单元测试** | 后端模块、数据处理、统计分析、安全工具 | `python -m pytest tests/ -v`（不含 AppTest） |
+| **集成测试** | CSV 加载 → 变量推断 → 分析 → 报告生成 | `python test_run4.py` |
+| **AppTest 前端烟雾测试** | Streamlit 页面加载、控件存在、session_state | `python -m pytest tests/test_streamlit_app_smoke.py -v` |
+| **手动浏览器验收** | 真实 UI 交互、视觉效果、浏览器兼容性 | 按 [`docs/frontend_acceptance.md`](docs/frontend_acceptance.md) 清单逐项检查 |
+| **发布检查** | 文件完整性、版本一致性、安全检查 | `python scripts/release_check.py` |
+
+> **说明：** AppTest 是 Streamlit 内置的模拟测试框架（`streamlit.testing.v1.AppTest`），
+> 不是完整浏览器 E2E。它能验证页面加载、控件存在和基本交互，但无法测试 CSS 渲染、
+> 图表显示和真实浏览器兼容性。真正发布前仍需按
+> [`docs/frontend_acceptance.md`](docs/frontend_acceptance.md) 进行人工浏览器验收。
+
+---
+
 ## 自动化测试
 
 项目附带了自动化测试脚本：
 
 ```bash
-# 当前集成测试（v0.1.0）
-python -m pytest tests/ -v      # pytest 测试套件（35+ 测试文件）
-python test_run4.py             # 场景四：CSV + 二分类变量 + 双配置（73 项检查）
+# 单元测试 + AppTest 前端烟雾测试（v0.1.0）
+python -m pytest tests/ -v                        # 全部 pytest 测试（含 AppTest）
+python -m pytest tests/test_streamlit_app_smoke.py -v  # 仅 AppTest 前端烟雾测试
+python test_run4.py                               # 集成测试（CSV + 二分类变量，73 项检查）
 ```
 
 每个脚本最后会输出测试结果摘要。

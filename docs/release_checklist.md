@@ -6,9 +6,10 @@
 
 ## 一、测试 ✅
 
-- [ ] `python -m pytest tests/ -v` 全部通过（当前：427+ passed, 0 failed）
+- [ ] `python -m pytest tests/ -v` 全部通过（当前：501 passed, 0 failed）
 - [ ] `python test_run4.py` 全部通过（当前：73/73）
 - [ ] `python -c "import py_compile; py_compile.compile('app.py', doraise=True)"` 编译成功
+- [ ] Streamlit AppTest 前端烟雾测试通过（`tests/test_streamlit_app_smoke.py`，当前：15 passed）
 - [ ] 无新增测试失败
 - [ ] 无因路径变化导致的 import 错误
 - [ ] 示例数据加载正常（`tests/test_examples.py` 通过）
@@ -41,6 +42,7 @@
   - [ ] Docker 未来方案说明
 - [ ] `AI_USAGE.md`（如存在）内容准确
 - [ ] `TESTING.md`（如存在）内容准确
+- [ ] `docs/frontend_acceptance.md` 存在且内容完整
 
 ## 三、安全 🔒
 
@@ -103,6 +105,16 @@
 - [ ] **Markdown 导出** — 正常下载
 - [ ] **HTML 导出** — 正常预览和下载
 - [ ] **DOCX 导出** — 正常下载
+
+### 前端手动验收（P3-6 新增）
+
+- [ ] 按 `docs/frontend_acceptance.md` 完成手动浏览器验收
+- [ ] A. 基础加载 — 全部通过
+- [ ] B. 示例数据流程 — 人工点击通过
+- [ ] C. 统计分析流程 — 全部通过
+- [ ] D. 无 API Key 流程 — 人工检查通过
+- [ ] F. 导出下载 — 人工检查通过
+- [ ] G. 安全检查 — 全部通过
 
 ## 五、发布前安全检查 🔐（P3-4 新增）
 

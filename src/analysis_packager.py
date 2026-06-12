@@ -527,12 +527,55 @@ def filter_payload_for_ai(
             safe_results.append(result_entry)
         filtered["analysis_results"] = safe_results
 
-    # 5. 记录过滤信息
+    # 5. 过滤 data_overview 中的列名列表
+    if "data_overview" in filtered and "column_names" in filtered["data_overview"]:
+        filtered["data_overview"]["column_names"] = [
+            c for c in filtered["data_overview"]["column_names"]
+            if c not in excluded_cols
+        ]
+        # Update column count
+        filtered["data_overview"]["column_count"] = len(
+            filtered["data_overview"]["column_names"]
+        )
+
+    # 6. 过滤 analysis_plan — 移除涉及排除变量的计划项
+    if "analysis_plan" in filtered:
+        filtered["analysis_plan"] = [
+            p for p in filtered["analysis_plan"]
+            if not (set(p.get("variables", [])) & excluded_cols)
+        ]
+
+    # 7. 过滤 warnings — 移除涉及排除变量的警告
+    if "warnings" in filtered:
+        filtered["warnings"] = [
+            w for w in filtered["warnings"]
+            if not any(col in w for col in excluded_cols)
+        ]
+
+    # 8. 过滤 user_analysis_config 中的排除变量列表
+    if "user_analysis_config" in filtered:
+        uac = filtered["user_analysis_config"]
+        for key in ("excluded_sensitive_variables", "excluded_id_variables",
+                     "excluded_text_variables", "privacy_restricted_variables"):
+            if key in uac and isinstance(uac[key], list):
+                # Replace specific excluded var names with count
+                original = uac[key]
+                uac[key] = [v for v in original if v not in excluded_cols]
+                # Add generic note if any were removed
+                removed_count = len(original) - len(uac[key])
+                if removed_count > 0:
+                    if not uac.get("_privacy_removed_note"):
+                        uac["_privacy_removed_note"] = (
+                            f"{removed_count} high-risk variable(s) excluded from AI payload "
+                            "per privacy settings"
+                        )
+
+    # 9. 记录过滤信息（不暴露具体变量名）
     filtered["_privacy_filtered"] = True
     if excluded_cols:
-        filtered["_privacy_excluded_vars"] = sorted(excluded_cols)
+        filtered["_privacy_excluded_count"] = len(excluded_cols)
     if aggregate_only_cols:
-        filtered["_privacy_aggregate_only_vars"] = sorted(aggregate_only_cols)
+        filtered["_privacy_aggregate_only_count"] = len(aggregate_only_cols)
 
     return filtered
 

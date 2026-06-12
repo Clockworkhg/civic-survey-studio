@@ -221,15 +221,14 @@ class TestFilterMetadata:
     def test_excluded_vars_listed(self, sample_payload, sample_schema):
         from src.analysis_packager import filter_payload_for_ai
         filtered = filter_payload_for_ai(sample_payload, sample_schema)
-        excluded = filtered.get("_privacy_excluded_vars", [])
-        assert "id_card" in excluded
-        assert "phone" in excluded
+        excluded_count = filtered.get("_privacy_excluded_count", 0)
+        assert excluded_count >= 2  # id_card and phone
 
     def test_aggregate_only_vars_listed(self, sample_payload, sample_schema):
         from src.analysis_packager import filter_payload_for_ai
         filtered = filter_payload_for_ai(sample_payload, sample_schema)
-        agg_only = filtered.get("_privacy_aggregate_only_vars", [])
-        assert "age" in agg_only
+        agg_only_count = filtered.get("_privacy_aggregate_only_count", 0)
+        assert agg_only_count >= 1  # age
 
 
 # ================================================================

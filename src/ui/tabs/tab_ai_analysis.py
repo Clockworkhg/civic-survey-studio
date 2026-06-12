@@ -56,6 +56,16 @@ from src.ui.security import (
 # Private helpers
 # ================================================================
 
+def _lookup_list_index(options: List[str], target: str, fallback: int = 0) -> int:
+    """Find the index of *target* in *options*; return *fallback* if not found."""
+    if target:
+        try:
+            return options.index(target)
+        except ValueError:
+            pass
+    return fallback
+
+
 def _build_chart_summaries(dashboard_charts: List) -> List[Dict[str, Any]]:
     """将 generate_dashboard_charts 的输出转为文字摘要列表。"""
     summaries = []
@@ -334,7 +344,8 @@ def render_tab_ai_analysis(
                             st.session_state["generic_config"] = gen_ctx.user_analysis_config
                             for wk in ["cfg_title", "cfg_target", "cfg_groups", "cfg_explanatory",
                                        "ai_report_title", "ai_research_subject",
-                                       "ai_report_structure", "ai_report_style"]:
+                                       "ai_report_structure", "ai_report_style",
+                                       "ai_report_length", "ai_html_theme"]:
                                 st.session_state.pop(wk, None)
                             for m in msgs:
                                 st.success(m)
@@ -392,43 +403,58 @@ def render_tab_ai_analysis(
             )
 
         # 报告结构 / 风格 / 长度 / 主题 — 统一来源
+        _struct_opts = get_structure_options()
+        _struct_idx = _lookup_list_index(_struct_opts, config.get("report_structure", ""), 0)
         report_structure = st.selectbox(
             "报告结构类型",
-            get_structure_options(),
+            _struct_opts,
+            index=_struct_idx,
             key="ai_report_structure",
             help="决定报告的章节结构。不同结构适用于不同场景。",
         )
 
         rp_col3, rp_col4 = st.columns(2)
         with rp_col3:
+            _style_opts = get_style_options()
+            _style_idx = _lookup_list_index(_style_opts, config.get("report_style", ""), 0)
             report_style = st.selectbox(
                 "写作语言风格",
-                get_style_options(),
+                _style_opts,
+                index=_style_idx,
                 key="ai_report_style",
                 help="决定报告的语言表达方式。",
             )
         with rp_col4:
+            _len_opts = get_length_options()
+            _len_idx = _lookup_list_index(_len_opts, config.get("report_length", ""), 1)
             report_length = st.selectbox(
                 "报告篇幅",
-                get_length_options(),
+                _len_opts,
+                index=_len_idx,
                 key="ai_report_length",
                 help="控制报告的详细程度。",
             )
 
         # HTML 导出主题
+        _theme_opts = get_html_theme_options()
+        _theme_idx = _lookup_list_index(_theme_opts, config.get("html_theme", ""), 3)
         html_theme = st.selectbox(
             "HTML 导出主题",
-            get_html_theme_options(),
-            index=3,  # 默认"简洁课程作业风"
+            _theme_opts,
+            index=_theme_idx,
             key="ai_html_theme",
             help="决定 HTML 报告的视觉样式。不影响 Markdown 和 Word 导出。",
         )
 
-        # 更新 config 中的标题
+        # 更新 config（含蓝图采用后同步过来的值）
         if report_title_input:
             config["report_title"] = report_title_input
         if research_subject:
             config["research_subject"] = research_subject
+        config["report_structure"] = report_structure
+        config["report_style"] = report_style
+        config["report_length"] = report_length
+        config["html_theme"] = html_theme
 
         # ---- 文献综述检索（可选）----
         literature_config: dict = {"enabled": False}  # 默认值

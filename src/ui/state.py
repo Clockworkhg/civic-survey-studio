@@ -57,6 +57,17 @@ def init_session_state() -> None:
     # ── 4. 当前 AI 模型（优先后保存的设置）──
     _set_default("_ai_model", st.session_state.get("_saved_model", ""))
 
+    # ── 5. v0.1.0: 下游有效性追踪 ──
+    _set_default("_downstream_valid", True)
+    _set_default("_invalidation_reason", "")
+    _set_default("_config_source", "")
+    _set_default("_config_applied_at", "")
+    _set_default("_analysis_results", {})
+    _set_default("_dashboard_charts", [])
+    _set_default("_analysis_payload", None)
+    _set_default("_generated_report", None)
+    _set_default("_pipeline_warnings", [])
+
 
 def _set_default(key: str, default: object) -> None:
     """Set a session_state key to *default* if it does not already exist."""

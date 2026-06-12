@@ -110,6 +110,10 @@ def render_tab_analysis_config(
 
     if st.button("💾 保存配置", type="primary", key="save_cfg_btn"):
         st.session_state["generic_config"] = config
-        st.success("✅ 分析配置已保存！")
+        # v0.1.0: 标记下游失效（通过 session_state 中继）
+        st.session_state["_downstream_valid"] = False
+        st.session_state["_invalidation_reason"] = "手动配置已更新"
+        st.session_state["_config_source"] = "manual"
+        st.success("✅ 分析配置已保存！分析结果已标记为失效，请重新执行分析。")
 
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)

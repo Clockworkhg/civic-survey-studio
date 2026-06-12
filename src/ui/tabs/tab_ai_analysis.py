@@ -66,26 +66,32 @@ def _lookup_list_index(options: List[str], target: str, fallback: int = 0) -> in
     return fallback
 
 
-def _reset_config_widgets() -> None:
-    """Clear all config-related widget caches so widgets re-initialise from
-    ``st.session_state["generic_config"]`` on next render.
+def apply_pending_blueprint_to_widget_state() -> None:
+    """Apply pending AI blueprint values to widget session_state keys.
 
-    Called after blueprint adoption to ensure all tabs pick up new values.
+    Must be called **before** any ``cfg_*`` / ``ai_report_*`` widgets are
+    rendered (i.e. in ``app.py`` ahead of the ``st.tabs`` block).  When no
+    pending blueprint exists the call is a cheap no-op.
+
+    This is the safe counterpart to setting widget keys inside a button
+    handler — by the time a button handler runs, Tab 4 widgets have already
+    been instantiated and Streamlit rejects direct writes to their keys.
     """
-    # All known widget keys that read from generic_config
-    _keys = [
-        # Tab 4 (分析配置)
-        "cfg_title", "cfg_target", "cfg_groups", "cfg_expl",
-        "cfg_html", "cfg_docx",
-        # Tab 10 (AI 自动分析) – report params
-        "ai_report_title", "ai_research_subject",
-        "ai_report_structure", "ai_report_style",
-        "ai_report_length", "ai_html_theme",
-        # Tab 10 – LLM params (not config-related but safe to reset)
-        "ai_temperature", "ai_max_tokens",
-    ]
-    for k in _keys:
-        st.session_state.pop(k, None)
+    pending = st.session_state.pop("_pending_ai_blueprint_apply", None)
+    if not pending:
+        return
+
+    st.session_state["cfg_title"]      = pending["title"]
+    st.session_state["cfg_target"]     = pending["target_variable"]
+    st.session_state["cfg_groups"]     = pending["group_variables"]
+    st.session_state["cfg_expl"]       = pending["explanatory_variables"]
+
+    st.session_state["ai_report_title"]     = pending["title"]
+    st.session_state["ai_research_subject"] = pending.get("research_subject", "")
+    st.session_state["ai_report_structure"] = pending.get("report_structure", "")
+    st.session_state["ai_report_style"]     = pending.get("report_style", "")
+    st.session_state["ai_report_length"]    = pending.get("report_length", "")
+    st.session_state["ai_html_theme"]       = pending.get("html_theme", "")
 
 
 def _build_chart_summaries(dashboard_charts: List) -> List[Dict[str, Any]]:
@@ -362,14 +368,30 @@ def render_tab_ai_analysis(
                     bp_c1, bp_c2 = st.columns([1, 3])
                     with bp_c1:
                         if st.button("✅ 采用推荐方案", type="primary", key="gen_adopt_blueprint"):
-                            msgs = gen_ctx.apply_blueprint(gen_blueprint)
+                            # v0.1.0: 使用统一状态流 — apply_blueprint_to_config 内部调用
+                            # apply_analysis_config → invalidate_downstream
+                            msgs = gen_ctx.apply_blueprint_to_config(
+                                gen_blueprint, schema_df=schema_df, overwrite=True,
+                            )
                             st.session_state["generic_config"] = gen_ctx.user_analysis_config
-                            # 清除所有分析相关 widget 缓存，迫使各 Tab 从 config 重新读取
-                            _reset_config_widgets()
-                            # 标记：各 Tab 在渲染时检测此标记，自行处理同步
-                            st.session_state["_config_just_updated"] = True
+                            # 写入 pending 标记（在 app.py 开头消费，早于所有 widget 渲染）
+                            cfg = gen_ctx.user_analysis_config
+                            st.session_state["_pending_ai_blueprint_apply"] = {
+                                "title":                cfg.get("report_title", ""),
+                                "target_variable":      cfg.get("target_variable", ""),
+                                "group_variables":      cfg.get("group_variables", []),
+                                "explanatory_variables": cfg.get("explanatory_variables", []),
+                                "research_subject":     cfg.get("research_subject", ""),
+                                "report_structure":     cfg.get("report_structure", ""),
+                                "report_style":         cfg.get("report_style", ""),
+                                "report_length":        cfg.get("report_length", ""),
+                                "html_theme":           cfg.get("html_theme", ""),
+                            }
                             for m in msgs:
                                 st.success(m)
+                            # 下游已通过 invalidate_downstream 标记失效
+                            if not gen_ctx.downstream_valid:
+                                st.info("分析结果已标记为失效，请重新执行分析。")
                             st.rerun()
                     with bp_c2:
                         st.caption("采用后将自动填入报告标题、核心变量、分组变量和解释变量。不会覆盖已手动修改的内容。")

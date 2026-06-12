@@ -367,9 +367,15 @@ def _render_ai_blueprint_section(
                 bp_c1, bp_c2 = st.columns([1, 3])
                 with bp_c1:
                     if st.button("采用推荐方案", type="primary", key="gen_adopt_blueprint_tab2"):
-                        msgs = gen_ctx.apply_blueprint(gen_blueprint, overwrite=True)
+                        # v0.1.0: 使用统一状态流 — apply_blueprint_to_config 内部调用
+                        # apply_analysis_config → invalidate_downstream
+                        msgs = gen_ctx.apply_blueprint_to_config(
+                            gen_blueprint, schema_df=schema_df, overwrite=True,
+                        )
+                        # 同步到全局 session_state
                         st.session_state["generic_config"] = gen_ctx.user_analysis_config
                         cfg = gen_ctx.user_analysis_config
+                        # 写入 pending 标记（在 app.py 开头消费，早于所有 widget 渲染）
                         st.session_state["_pending_ai_blueprint_apply"] = {
                             "title":                cfg.get("report_title", ""),
                             "target_variable":      cfg.get("target_variable", ""),
@@ -383,6 +389,9 @@ def _render_ai_blueprint_section(
                         }
                         for m in msgs:
                             st.success(m)
+                        # 下游已通过 invalidate_downstream 标记失效
+                        if not gen_ctx.downstream_valid:
+                            st.info("分析结果已标记为失效，请前往「统计分析」页面重新执行分析。")
                         st.rerun()
                 with bp_c2:
                     st.caption("采用后将自动填入核心变量、分组变量和解释变量。")
@@ -485,6 +494,35 @@ with gt3:
             action_label="前往分析方案",
         )
     else:
+        # ── v0.1.0: 下游失效状态提示 ──
+        if not gen_ctx.downstream_valid:
+            reason = gen_ctx.invalidation_reason or "配置已更新"
+            st.info(f"分析配置已变更（{reason}），请点击下方按钮重新执行分析。")
+
+        # ── 统一执行按钮 ──
+        run_col1, run_col2 = st.columns([1, 3])
+        with run_col1:
+            run_label = "重新执行分析" if not gen_ctx.downstream_valid else "执行统计分析"
+            if st.button(run_label, type="primary", key="run_analysis_pipeline_btn"):
+                with st.spinner("正在执行完整分析管道…"):
+                    pipeline_result = gen_ctx.run_analysis_pipeline(force=True)
+                    if pipeline_result.get("success"):
+                        st.success(
+                            f"分析完成 — "
+                            f"包含单变量、双变量、多变量分析"
+                            + (f" 和 {len(pipeline_result.get('dashboard_charts', []))} 个图表"
+                               if pipeline_result.get('dashboard_charts') else "")
+                        )
+                    else:
+                        st.error(pipeline_result.get("error", "分析执行失败"))
+                    st.rerun()
+        with run_col2:
+            if gen_ctx.downstream_valid and gen_ctx.analysis_results:
+                st.caption("当前分析结果有效，可直接查看。配置变更后需要重新执行。")
+            elif not gen_ctx.downstream_valid:
+                st.caption("配置已变更，分析结果需要刷新。")
+
+        # ── 分析结果展示 ──
         render_section("单变量分析", f"对 {target} 等变量进行描述统计")
         render_tab_univariate_analysis(raw_df, schema_df, cn_map, analyzable_cols, variable_df_generic)
 
@@ -506,6 +544,13 @@ with gt4:
             "还不能生成图表",
             "请先在「分析方案」中选择核心变量，然后执行统计分析。",
             action_label="前往分析方案",
+        )
+    elif not gen_ctx.downstream_valid:
+        render_empty_state(
+            "图表需要刷新",
+            "分析配置已变更。请先在「统计分析」页面重新执行分析，"
+            "然后再查看图表。",
+            action_label="前往统计分析",
         )
     else:
         render_tab_visualization(raw_df, schema_df, config, type_map, cn_map)

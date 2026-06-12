@@ -147,10 +147,17 @@ def render_pipeline_status(
             f'{dot}<span style="font-size:13px;font-weight:500;color:{COLORS.text};">'
             f'{_html_safe(step["label"])}</span>'
         )
-        if step.get("hint") and status in ("pending", "current"):
+
+        # 增强 hint: 显示状态提示
+        hint_text = step.get("hint", "")
+        if status == "warning":
+            hint_text = "需刷新"
+        elif status == "blocked":
+            hint_text = "已阻塞"
+        if hint_text:
             label_html += (
                 f' <span style="font-size:11px;color:{COLORS.text_muted};">'
-                f'({_html_safe(step["hint"])})</span>'
+                f'({_html_safe(hint_text)})</span>'
             )
 
         items_html.append(
@@ -185,24 +192,32 @@ def _resolve_pipeline_statuses(ctx: Any, steps: List[Dict[str, str]]) -> Dict[st
     analysis_ready = False
     report_ready = False
 
+    # 初始化所有变量
+    raw_df_loaded = False
+    schema_ready = False
+    config_ready = False
+    downstream_valid = True
+    analysis_exists = False
+    report_ready = False
+
     # 从 ctx 或 session_state 推断
     if ctx is not None:
         raw_df_loaded = ctx.df is not None and len(ctx.df) > 0
         schema_ready = ctx.variable_schema is not None and len(ctx.variable_schema) > 0
         config_ready = bool(ctx.target or ctx.user_analysis_config.get("target_variable"))
-        analysis_ready = bool(ctx.analysis_results)
-        # report_ready — 不自动判断，由具体页面自行设置
+        downstream_valid = ctx.downstream_valid
+        analysis_exists = bool(ctx.analysis_results)
     else:
-        # 从 session_state 推断
         raw_df_loaded = bool(
             st.session_state.get("_last_file_key")
             or st.session_state.get("_use_example_data")
             or st.session_state.get("_example_raw_df") is not None
         )
-        schema_ready = raw_df_loaded  # schema 随数据加载自动生成
+        schema_ready = raw_df_loaded
         cfg = st.session_state.get("generic_config", {})
         config_ready = bool(cfg.get("target_variable", ""))
-        analysis_ready = bool(st.session_state.get("_analysis_results"))
+        downstream_valid = st.session_state.get("_downstream_valid", True)
+        analysis_exists = bool(st.session_state.get("_analysis_results"))
         report_ready = bool(
             st.session_state.get("_generated_report")
             or st.session_state.get("ai_analysis_payload")
@@ -211,8 +226,18 @@ def _resolve_pipeline_statuses(ctx: Any, steps: List[Dict[str, str]]) -> Dict[st
     statuses["data"] = "done" if raw_df_loaded else "pending"
     statuses["vars"] = "done" if schema_ready else "pending"
     statuses["config"] = "done" if config_ready else ("current" if raw_df_loaded else "pending")
-    statuses["analysis"] = "done" if analysis_ready else ("current" if config_ready else "pending")
-    statuses["report"] = "done" if report_ready else ("current" if analysis_ready else "pending")
+
+    # v0.1.0: analysis 状态区分 "done" vs "stale" (downstream invalid)
+    if analysis_exists and downstream_valid:
+        statuses["analysis"] = "done"
+    elif analysis_exists and not downstream_valid:
+        statuses["analysis"] = "warning"  # 结果存在但已失效
+    elif config_ready:
+        statuses["analysis"] = "current"
+    else:
+        statuses["analysis"] = "pending"
+
+    statuses["report"] = "done" if report_ready else ("current" if analysis_exists else "pending")
 
     return statuses
 

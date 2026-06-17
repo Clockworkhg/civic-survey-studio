@@ -28,6 +28,7 @@ import src.ui.messages as ui_messages
 from src.ui.example_data import load_example_data as load_builtin_example_data
 from src.ui.components import (
     render_page_header,
+    render_workspace_header,
     render_pipeline_status,
     render_metric_card,
     render_empty_state,
@@ -77,26 +78,6 @@ sb = render_sidebar()
 
 # ── 是否有数据加载 ──
 _has_data = sb["generic_file"] is not None or st.session_state.get("_use_example_data", False)
-
-# ================================================================
-# 标题区
-# ================================================================
-if _has_data:
-    render_page_header(
-        title="CivicSurvey Studio",
-        subtitle="问策 Insight · 当前项目：问卷数据分析",
-        step="",
-    )
-
-# ── 免责声明（有数据时显示）──
-if _has_data:
-    st.markdown(
-        f'<div style="font-size:11px;color:{COLORS.text_subtle};margin-bottom:14px;line-height:1.6;">'
-        '统计关联不等于因果关系，分析结果需结合实际情况进行人工判断。AI 仅作为辅助工具。'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
 
 # ================================================================
 # 示例数据 / 文件加载逻辑
@@ -222,6 +203,20 @@ schema_df = infer_variable_schema(
 )
 
 quality = get_data_quality_report(raw_df)
+
+if _has_data:
+    render_workspace_header(
+        dataset_name=_file_name,
+        sample_count=int(quality.get("样本量", 0)),
+        variable_count=int(quality.get("变量数", 0)),
+        ai_ready=bool(st.session_state.get("_api_key", "")),
+    )
+    st.markdown(
+        f'<div style="font-size:11px;color:{COLORS.text_subtle};margin:-4px 0 14px 2px;line-height:1.6;">'
+        '统计关联不等于因果关系，分析结果需结合实际情况进行人工判断。AI 仅作为辅助工具。'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 type_map = {row["column"]: row["inferred_type"] for _, row in schema_df.iterrows()}
 cn_map = {row["column"]: row["display_name"] for _, row in schema_df.iterrows()}

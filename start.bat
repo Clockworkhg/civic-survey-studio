@@ -2,6 +2,9 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
+set "APP_PORT=%~1"
+if "%APP_PORT%"=="" set "APP_PORT=8502"
+
 echo.
 echo ================================================
 echo   CivicSurvey Studio (问策 Insight)
@@ -24,9 +27,9 @@ pip install -r requirements.txt -q
 
 echo.
 echo Starting Streamlit app...
-echo Open http://localhost:8501 in your browser.
+echo Open http://localhost:%APP_PORT% in your browser.
 echo.
 
-streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+streamlit run app.py --server.port %APP_PORT% --server.address 0.0.0.0
 
 pause

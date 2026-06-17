@@ -61,6 +61,49 @@ def _card_css(card_style: dict, extra: str = "") -> str:
     )
 
 
+def render_workspace_header(
+    dataset_name: str = "",
+    sample_count: int = 0,
+    variable_count: int = 0,
+    ai_ready: bool = False,
+) -> None:
+    """Render the compact application header for loaded workspaces."""
+    ds = dataset_name or "未命名数据集"
+    ai_label = "AI 已配置" if ai_ready else "AI 未配置"
+    ai_color = COLORS.success if ai_ready else COLORS.text_muted
+    html = (
+        f'<div style="display:flex;align-items:center;justify-content:space-between;'
+        f'gap:16px;margin:0 0 14px 0;padding:12px 14px;'
+        f'background:{COLORS.surface_raised};border:1px solid {COLORS.border};'
+        f'border-radius:{RADIUS["lg"]};box-shadow:{SHADOWS["card"]};">'
+        f'<div style="min-width:0;">'
+        f'<div style="font-size:18px;line-height:24px;font-weight:700;'
+        f'color:{COLORS.text_strong};">问策 Insight</div>'
+        f'<div style="font-size:11px;line-height:18px;color:{COLORS.text_muted};'
+        f'text-transform:uppercase;letter-spacing:0.6px;">CivicSurvey Studio</div>'
+        f'</div>'
+        f'<div style="flex:1;min-width:0;border-left:1px solid {COLORS.divider};'
+        f'padding-left:14px;">'
+        f'<div style="font-size:12px;color:{COLORS.text_muted};margin-bottom:2px;">当前数据集</div>'
+        f'<div style="font-size:14px;font-weight:650;color:{COLORS.text};'
+        f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_html_safe(ds)}</div>'
+        f'</div>'
+        f'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'
+        f'<span style="font-size:12px;color:{COLORS.text};background:{COLORS.surface};'
+        f'border:1px solid {COLORS.border};border-radius:{RADIUS["pill"]};'
+        f'padding:4px 10px;">样本 {sample_count:,}</span>'
+        f'<span style="font-size:12px;color:{COLORS.text};background:{COLORS.surface};'
+        f'border:1px solid {COLORS.border};border-radius:{RADIUS["pill"]};'
+        f'padding:4px 10px;">变量 {variable_count:,}</span>'
+        f'<span style="font-size:12px;color:{ai_color};background:{COLORS.surface};'
+        f'border:1px solid {COLORS.border};border-radius:{RADIUS["pill"]};'
+        f'padding:4px 10px;">{ai_label}</span>'
+        f'</div>'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
 # ================================================================
 # 1. 页面标题区
 # ================================================================
@@ -80,24 +123,24 @@ def render_page_header(
     parts = []
     if step:
         parts.append(
-            f'<span style="font-size:13px;color:{COLORS.text_muted};'
-            f'background:{COLORS.surface_subtle};padding:2px 10px;'
-            f'border-radius:{RADIUS["pill"]};">'
+            f'<span style="font-size:12px;color:{COLORS.primary};'
+            f'background:{COLORS.primary_soft};border:1px solid {COLORS.primary_line};'
+            f'padding:2px 10px;border-radius:{RADIUS["pill"]};font-weight:600;">'
             f'{_html_safe(step)}</span>'
         )
     parts.append(
-        f'<span style="font-size:22px;font-weight:650;color:{COLORS.text_strong};">'
+        f'<span style="font-size:22px;line-height:30px;font-weight:700;color:{COLORS.text_strong};">'
         f'{_html_safe(title)}</span>'
     )
     header_html = (
-        f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">'
+        f'<div style="display:flex;align-items:center;gap:12px;margin:2px 0 4px 0;">'
         f'{"".join(parts)}</div>'
     )
     st.markdown(header_html, unsafe_allow_html=True)
 
     if subtitle:
         st.markdown(
-            f'<p style="color:{COLORS.text_muted};font-size:13px;margin:0 0 16px 0;">'
+            f'<p style="color:{COLORS.text_muted};font-size:13px;line-height:20px;margin:0 0 16px 0;">'
             f'{_html_safe(subtitle)}</p>',
             unsafe_allow_html=True,
         )
@@ -143,9 +186,9 @@ def render_pipeline_status(
         color = PIPELINE_STATUS_COLORS.get(status, COLORS.text_subtle)
         bg = PIPELINE_STATUS_BG.get(status, COLORS.surface_muted)
 
-        dot = f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{color};margin-right:6px;"></span>'
+        dot = f'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{color};margin-right:7px;box-shadow:0 0 0 3px {bg};"></span>'
         label_html = (
-            f'{dot}<span style="font-size:13px;font-weight:500;color:{COLORS.text};">'
+            f'{dot}<span style="font-size:13px;font-weight:650;color:{COLORS.text};">'
             f'{_html_safe(step["label"])}</span>'
         )
 
@@ -163,20 +206,21 @@ def render_pipeline_status(
 
         items_html.append(
             f'<span style="display:inline-flex;align-items:center;'
-            f'padding:6px 12px;background:{bg};border-radius:{RADIUS["pill"]};'
-            f'white-space:nowrap;">{label_html}</span>'
+            f'padding:7px 12px;background:{bg};border:1px solid {COLORS.border};'
+            f'border-radius:{RADIUS["pill"]};white-space:nowrap;">{label_html}</span>'
         )
 
         # 箭头分隔
         if i < len(steps) - 1:
             items_html.append(
-                f'<span style="color:{COLORS.text_subtle};margin:0 4px;font-size:12px;">→</span>'
+                f'<span style="color:{COLORS.text_subtle};margin:0 2px;font-size:12px;">/</span>'
             )
 
     container_html = (
         f'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;'
-        f'padding:10px 16px;background:{COLORS.surface};'
-        f'border:1px solid {COLORS.border};border-radius:{RADIUS["md"]};'
+        f'padding:10px 12px;background:{COLORS.surface_raised};'
+        f'border:1px solid {COLORS.border};border-radius:{RADIUS["lg"]};'
+        f'box-shadow:{SHADOWS["card"]};'
         f'margin-bottom:{SPACING["lg"]};">'
         f'{"".join(items_html)}'
         f'</div>'
@@ -326,10 +370,11 @@ def render_metric_card(
     vcolor = status_colors.get(status, COLORS.primary)
 
     parts = [
-        f'<div style="{_card_css(CARD_STYLE)}text-align:center;min-width:100px;">',
+        f'<div style="{_card_css(CARD_STYLE)}min-width:100px;">',
         f'<div style="font-size:11px;color:{COLORS.text_muted};margin-bottom:4px;'
         f'text-transform:uppercase;letter-spacing:0.5px;">{_html_safe(label)}</div>',
-        f'<div style="font-size:24px;font-weight:700;color:{vcolor};">'
+        f'<div style="font-size:26px;line-height:32px;font-weight:700;color:{vcolor};'
+        f'font-variant-numeric:tabular-nums;">'
         f'{_html_safe(str(value))}</div>',
     ]
     if hint:
@@ -358,8 +403,8 @@ def render_empty_state(
         action_label: 可选操作提示
     """
     parts = [
-        f'<div style="{_card_css(CARD_STYLE)}text-align:center;padding:32px 18px;">',
-        f'<div style="font-size:15px;font-weight:600;color:{COLORS.text};margin-bottom:8px;">'
+        f'<div style="{_card_css(CARD_STYLE)}text-align:center;padding:34px 20px;">',
+        f'<div style="font-size:16px;font-weight:650;color:{COLORS.text_strong};margin-bottom:8px;">'
         f'{_html_safe(title)}</div>',
         f'<div style="font-size:13px;color:{COLORS.text_muted};max-width:480px;margin:0 auto;'
         f'line-height:1.6;">{_html_safe(message)}</div>',
@@ -367,8 +412,8 @@ def render_empty_state(
     if action_label:
         parts.append(
             f'<div style="margin-top:16px;">'
-            f'<span style="font-size:12px;color:{COLORS.primary};'
-            f'background:{COLORS.primary_soft};padding:4px 12px;'
+            f'<span style="font-size:12px;color:{COLORS.primary};font-weight:600;'
+            f'background:{COLORS.primary_soft};border:1px solid {COLORS.primary_line};padding:4px 12px;'
             f'border-radius:{RADIUS["pill"]};">{_html_safe(action_label)}</span>'
             f'</div>'
         )
@@ -426,7 +471,7 @@ def render_config_summary(
         )
 
     card_css = _card_css(CARD_STYLE)
-    card_style = f"flex:1;min-width:160px;{card_css}"
+    card_style = f"flex:1;min-width:170px;{card_css}min-height:96px;"
 
     # ── Card 1: 报告标题 ──
     if title:
@@ -514,7 +559,7 @@ def render_config_summary(
 
     html = (
         f'<div style="margin-bottom:16px;">'
-        f'<div style="font-size:14px;font-weight:600;color:{COLORS.text};'
+        f'<div style="font-size:15px;font-weight:700;color:{COLORS.text_strong};'
         f'margin-bottom:10px;">当前分析方案</div>'
         f'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
         f'{title_card}{target_card}{group_card}{expl_card}'
@@ -539,7 +584,7 @@ def render_section(
     """
     st.markdown(
         f'<div style="margin-top:{SPACING["lg"]};margin-bottom:{SPACING["sm"]};">'
-        f'<span style="font-size:16px;font-weight:650;color:{COLORS.text_strong};">'
+        f'<span style="font-size:17px;font-weight:700;color:{COLORS.text_strong};">'
         f'{_html_safe(title)}</span>'
         f'</div>',
         unsafe_allow_html=True,

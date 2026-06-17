@@ -409,9 +409,9 @@ def _landing_shared_constants():
     C = COLORS
     R = RADIUS
     card_css = (
-        f"background:{C.surface};border:1px solid {C.border};"
-        f"border-radius:{R['md']};padding:20px;"
-        f"box-shadow:0 1px 3px rgba(16,24,40,0.06);"
+        f"background:{C.surface_raised};border:1px solid {C.border};"
+        f"border-radius:{R['lg']};padding:20px;"
+        f"box-shadow:0 1px 2px rgba(23,33,43,0.04);"
     )
     steps = [
         ("数据与变量", "上传数据、预览与变量管理"),
@@ -424,7 +424,7 @@ def _landing_shared_constants():
 
 
 def get_landing_hero() -> str:
-    """Render the landing page hero area (two-column: brand + 5-step overview).
+    """Render the landing page hero area.
 
     Does NOT include CTA buttons — those are rendered as st.button() in app.py.
     """
@@ -434,9 +434,9 @@ def get_landing_hero() -> str:
     for i, (name, hint) in enumerate(steps, 1):
         step_items.append(
             f'<div style="display:flex;align-items:center;gap:10px;'
-            f'padding:9px 0;border-bottom:1px solid {C.divider};">'
+            f'padding:10px 0;border-bottom:1px solid {C.divider};">'
             f'<div style="width:24px;height:24px;border-radius:50%;'
-            f'background:{C.surface_subtle};color:{C.text_muted};'
+            f'background:{C.primary_soft};color:{C.primary};'
             f'text-align:center;line-height:24px;font-size:11px;'
             f'font-weight:600;flex-shrink:0;">{i}</div>'
             f'<div style="flex:1;min-width:0;">'
@@ -448,30 +448,55 @@ def get_landing_hero() -> str:
         )
 
     return (
-        f'<div style="display:flex;gap:20px;flex-wrap:wrap;'
-        f'align-items:stretch;margin-bottom:2px;">'
+        f'<div style="position:relative;overflow:hidden;'
+        f'background:{C.surface_raised};border:1px solid {C.border};'
+        f'border-radius:16px;padding:30px 30px 24px;'
+        f'box-shadow:0 18px 44px rgba(23,33,43,0.08);'
+        f'margin-bottom:14px;">'
+        f'<div style="position:absolute;left:0;right:0;top:0;height:4px;'
+        f'background:{C.primary};opacity:0.9;"></div>'
+        f'<div style="position:absolute;left:30px;right:30px;bottom:0;'
+        f'border-bottom:1px solid {C.divider};opacity:0.8;"></div>'
+        f'<div style="position:relative;display:grid;grid-template-columns:minmax(280px,1.25fr) minmax(280px,0.75fr);'
+        f'gap:28px;align-items:stretch;">'
         # ── Left: brand ──
-        f'<div style="flex:1;min-width:280px;">'
-        f'<div style="font-size:32px;font-weight:700;color:{C.text_strong};'
-        f'line-height:1.2;margin-bottom:4px;">CivicSurvey Studio</div>'
-        f'<div style="font-size:13px;color:{C.primary};font-weight:500;'
-        f'margin-bottom:10px;">'
-        f'问策 Insight &middot; AI 辅助问卷统计分析与报告生成工作台</div>'
-        f'<div style="font-size:12px;color:{C.text_muted};'
-        f'line-height:1.6;margin-bottom:10px;max-width:480px;">'
-        f'上传问卷数据，自动识别变量类型，完成统计分析、可视化与报告生成。</div>'
+        f'<div style="min-width:280px;">'
+        f'<div style="font-size:12px;color:{C.primary};font-weight:700;'
+        f'letter-spacing:0.8px;text-transform:uppercase;margin-bottom:12px;">'
+        f'Civic Intelligence Workspace</div>'
+        f'<div style="font-size:38px;font-weight:750;color:{C.text_strong};'
+        f'line-height:1.14;margin-bottom:8px;letter-spacing:0;">问策 Insight</div>'
+        f'<div style="font-size:13px;color:{C.primary};font-weight:700;'
+        f'line-height:20px;margin-bottom:8px;">CivicSurvey Studio</div>'
+        f'<div style="font-size:18px;color:{C.text};font-weight:650;'
+        f'line-height:1.45;margin-bottom:12px;">'
+        f'把问卷数据整理成可信的统计分析与正式报告。</div>'
+        f'<div style="font-size:13px;color:{C.text_muted};'
+        f'line-height:1.7;margin-bottom:18px;max-width:560px;">'
+        f'上传 CSV / Excel，系统自动识别变量、运行统计分析、生成交互图表，'
+        f'并导出 HTML / Word 报告。AI 只作为辅助草稿，不替代人工判断。</div>'
+        f'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'
+        f'<span style="font-size:12px;color:{C.primary};background:{C.primary_soft};'
+        f'border:1px solid {C.primary_line};border-radius:{R["pill"]};padding:5px 10px;">本地统计无需 API Key</span>'
+        f'<span style="font-size:12px;color:{C.accent};background:{C.accent_soft};'
+        f'border:1px solid {C.accent_border};border-radius:{R["pill"]};padding:5px 10px;">AI-safe 隐私过滤</span>'
+        f'<span style="font-size:12px;color:{C.text};background:{C.surface};'
+        f'border:1px solid {C.border};border-radius:{R["pill"]};padding:5px 10px;">HTML / DOCX 导出</span>'
+        f'</div>'
         # disclaimer
         f'<div style="font-size:11px;color:{C.text_subtle};'
-        f'line-height:1.5;max-width:480px;">'
+        f'line-height:1.6;max-width:560px;">'
         f'统计关联不等于因果关系，分析结果需结合实际情况进行人工判断。'
         f'AI 仅作为辅助分析和报告草稿工具，最终结论仍需人工复核。</div>'
         f'</div>'
         # ── Right: 5-step overview card ──
-        f'<div style="flex:1;min-width:260px;{card_css}">'
+        f'<div style="min-width:260px;{card_css}background:rgba(255,255,255,0.72);'
+        f'backdrop-filter:blur(6px);">'
         f'<div style="font-size:11px;color:{C.text_muted};'
         f'text-transform:uppercase;letter-spacing:0.5px;'
         f'margin-bottom:10px;">工作流概览</div>'
         f'{"".join(step_items)}'
+        f'</div>'
         f'</div>'
         f'</div>'
     )
@@ -483,23 +508,24 @@ def get_landing_cards() -> str:
 
     # ── Three getting-started cards ──
     cards = (
-        f'<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">'
+        f'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));'
+        f'gap:12px;margin-bottom:14px;">'
         f'<div style="flex:1;min-width:180px;{card_css}">'
-        f'<div style="font-size:13px;font-weight:600;color:{C.text};margin-bottom:4px;">'
+        f'<div style="font-size:14px;font-weight:700;color:{C.text_strong};margin-bottom:6px;">'
         f'上传问卷数据</div>'
-        f'<div style="font-size:11px;color:{C.text_muted};line-height:1.55;">'
+        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.6;">'
         f'支持 CSV / Excel 格式，上传后自动完成数据质量检查和变量类型识别。'
         f'在左侧边栏上传文件即可开始。</div></div>'
         f'<div style="flex:1;min-width:180px;{card_css}">'
-        f'<div style="font-size:13px;font-weight:600;color:{C.text};margin-bottom:4px;">'
+        f'<div style="font-size:14px;font-weight:700;color:{C.text_strong};margin-bottom:6px;">'
         f'加载示例数据</div>'
-        f'<div style="font-size:11px;color:{C.text_muted};line-height:1.55;">'
+        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.6;">'
         f'无数据时可使用内置模拟数据快速体验完整分析流程。'
         f'所有示例均为模拟数据，不含真实个人信息。</div></div>'
         f'<div style="flex:1;min-width:180px;{card_css}">'
-        f'<div style="font-size:13px;font-weight:600;color:{C.text};margin-bottom:4px;">'
+        f'<div style="font-size:14px;font-weight:700;color:{C.text_strong};margin-bottom:6px;">'
         f'配置 AI 报告</div>'
-        f'<div style="font-size:11px;color:{C.text_muted};line-height:1.55;">'
+        f'<div style="font-size:12px;color:{C.text_muted};line-height:1.6;">'
         f'仅在需要 AI 生成报告时配置 API Key。'
         f'本地统计分析无需 API Key。在左侧边栏 AI 设置区配置。</div></div>'
         f'</div>'
@@ -510,7 +536,7 @@ def get_landing_cards() -> str:
     step_cards_html = []
     for i, (name, hint) in enumerate(steps, 1):
         step_cards_html.append(
-            f'<div style="flex:1;min-width:110px;background:{C.surface};'
+            f'<div style="flex:1;min-width:110px;background:{C.surface_raised};'
             f'border:1px solid {C.border};border-radius:{R["md"]};'
             f'padding:12px 8px;text-align:center;'
             f'box-shadow:0 1px 2px rgba(16,24,40,0.04);">'

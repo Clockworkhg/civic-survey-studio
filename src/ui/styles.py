@@ -31,6 +31,7 @@ APP_CSS = f"""
 html, body, [class*="css"] {{
     font-family: {FONT_FAMILY} !important;
     color: {COLORS.text};
+    font-variant-numeric: tabular-nums;
 }}
 
 /* 页面背景 */
@@ -44,16 +45,17 @@ section[data-testid="stAppViewContainer"] > .main {{
 
 /* 主内容容器 — 约束最大宽度，减少空白 */
 .block-container {{
-    max-width: 1200px !important;
-    padding-top: 1.5rem !important;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
+    max-width: 1280px !important;
+    padding-top: 1.25rem !important;
+    padding-left: 1.75rem !important;
+    padding-right: 1.75rem !important;
+    padding-bottom: 2rem !important;
 }}
 
 /* Streamlit 全局 padding 缩减 */
 section[data-testid="stAppViewContainer"] .main .block-container {{
     padding-top: 1rem !important;
-    max-width: 1200px !important;
+    max-width: 1280px !important;
 }}
 
 /* ============================================================
@@ -62,6 +64,8 @@ section[data-testid="stAppViewContainer"] .main .block-container {{
 
 h1, h2, h3, h4 {{
     font-family: {FONT_FAMILY} !important;
+    color: {COLORS.text_strong} !important;
+    letter-spacing: 0 !important;
 }}
 
 /* Streamlit 默认标题弱化 */
@@ -74,12 +78,12 @@ h1, h2, h3, h4 {{
    ============================================================ */
 
 section[data-testid="stSidebar"] {{
-    background: {COLORS.surface};
+    background: {COLORS.surface_raised};
     border-right: 1px solid {COLORS.border};
 }}
 
 section[data-testid="stSidebar"] .block-container {{
-    padding-top: 0.8rem !important;
+    padding-top: 0.9rem !important;
     padding-left: 1rem !important;
     padding-right: 1rem !important;
 }}
@@ -117,7 +121,8 @@ section[data-testid="stSidebar"] hr {{
 
 /* Sidebar file uploader — compact */
 section[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] {{
-    padding: 8px !important;
+    padding: 10px !important;
+    background: {COLORS.surface} !important;
 }}
 
 /* Sidebar caption — smaller */
@@ -155,16 +160,17 @@ section[data-testid="stSidebar"] .stNumberInput label {{
 /* Tab 容器 — 分段导航风格 */
 .stTabs [data-baseweb="tab-list"] {{
     gap: 0;
-    background: {COLORS.surface};
+    background: {COLORS.surface_raised};
     border: 1px solid {COLORS.border};
     border-radius: {RADIUS["md"]};
-    padding: 3px;
+    padding: 4px;
     margin-bottom: {SPACING["lg"]};
+    box-shadow: {SHADOWS["card"]};
 }}
 
 /* 单个 Tab */
 .stTabs [data-baseweb="tab"] {{
-    height: 38px;
+    height: 40px;
     border-radius: {RADIUS["sm"]} !important;
     font-size: 13px !important;
     font-weight: 500 !important;
@@ -188,6 +194,10 @@ section[data-testid="stSidebar"] .stNumberInput label {{
     font-weight: 600 !important;
 }}
 
+.stTabs [data-baseweb="tab-highlight"] {{
+    display: none !important;
+}}
+
 /* ============================================================
    按钮
    ============================================================ */
@@ -201,7 +211,8 @@ section[data-testid="stSidebar"] .stNumberInput label {{
     font-size: 14px !important;
     font-weight: 500 !important;
     padding: 8px 20px !important;
-    min-height: 38px;
+    min-height: 40px;
+    box-shadow: 0 1px 2px rgba(23,33,43,0.10);
     transition: background 0.15s ease;
 }}
 
@@ -218,7 +229,7 @@ section[data-testid="stSidebar"] .stNumberInput label {{
     font-size: 13px !important;
     font-weight: 500 !important;
     padding: 6px 16px !important;
-    min-height: 36px;
+    min-height: 38px;
 }}
 
 .stButton > button[kind="secondary"]:hover {{
@@ -234,7 +245,7 @@ section[data-testid="stSidebar"] .stNumberInput label {{
     background: {COLORS.surface};
     border: 1px solid {COLORS.border};
     border-radius: {RADIUS["md"]};
-    padding: 18px;
+    padding: 16px;
     box-shadow: {SHADOWS["card"]};
     margin-bottom: 16px;
 }}
@@ -262,10 +273,10 @@ section[data-testid="stSidebar"] .stNumberInput label {{
    ============================================================ */
 
 [data-testid="metric-container"] {{
-    background: {COLORS.surface} !important;
+    background: {COLORS.surface_raised} !important;
     border: 1px solid {COLORS.border} !important;
     border-radius: {RADIUS["md"]} !important;
-    padding: 14px 18px !important;
+    padding: 13px 16px !important;
     box-shadow: {SHADOWS["card"]} !important;
 }}
 
@@ -279,8 +290,9 @@ section[data-testid="stSidebar"] .stNumberInput label {{
 
 [data-testid="metric-container"] div[data-testid="stMetricValue"] {{
     color: {COLORS.primary} !important;
-    font-size: 24px !important;
+    font-size: 26px !important;
     font-weight: 700 !important;
+    font-variant-numeric: tabular-nums !important;
 }}
 
 /* ============================================================
@@ -291,7 +303,7 @@ section[data-testid="stSidebar"] .stNumberInput label {{
     font-size: 13px !important;
     font-weight: 500 !important;
     color: {COLORS.text} !important;
-    background: {COLORS.surface_subtle} !important;
+    background: {COLORS.surface_raised} !important;
     border-radius: {RADIUS["sm"]} !important;
     border: 1px solid {COLORS.border} !important;
 }}
@@ -306,6 +318,7 @@ section[data-testid="stSidebar"] .stNumberInput label {{
 
 [data-testid="stTable"] {{
     font-size: 13px !important;
+    font-variant-numeric: tabular-nums;
 }}
 
 [data-testid="stTable"] th {{
@@ -315,12 +328,12 @@ section[data-testid="stSidebar"] .stNumberInput label {{
     font-size: 11px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
-    padding: 8px 12px !important;
+    padding: 9px 12px !important;
     border-color: {COLORS.border} !important;
 }}
 
 [data-testid="stTable"] td {{
-    padding: 6px 12px !important;
+    padding: 7px 12px !important;
     border-color: {COLORS.divider} !important;
     font-size: 13px !important;
 }}
@@ -335,6 +348,7 @@ section[data-testid="stSidebar"] .stNumberInput label {{
     border: 1px solid {COLORS.border} !important;
     border-radius: {RADIUS["sm"]} !important;
     font-size: 14px !important;
+    background: {COLORS.surface} !important;
 }}
 
 .stTextInput > div > div > input:focus,
@@ -348,6 +362,7 @@ section[data-testid="stSidebar"] .stNumberInput label {{
 .stMultiSelect > div > div {{
     border: 1px solid {COLORS.border} !important;
     border-radius: {RADIUS["sm"]} !important;
+    background: {COLORS.surface} !important;
 }}
 
 /* 上传区域 */
@@ -355,6 +370,7 @@ section[data-testid="stSidebar"] .stNumberInput label {{
     background: {COLORS.surface} !important;
     border: 1px dashed {COLORS.border_strong} !important;
     border-radius: {RADIUS["md"]} !important;
+    min-height: 82px !important;
 }}
 
 [data-testid="stFileUploadDropzone"]:hover {{
@@ -368,37 +384,37 @@ section[data-testid="stSidebar"] .stNumberInput label {{
 
 /* 默认 info — 改为温和灰蓝 */
 div[data-testid="stAlert"][kind="info"] {{
-    background: {COLORS.surface_subtle} !important;
-    border-left: 3px solid {COLORS.text_muted} !important;
+    background: {COLORS.info_soft} !important;
+    border: 1px solid {COLORS.primary_line} !important;
     color: {COLORS.text} !important;
-    border-radius: {RADIUS["sm"]} !important;
+    border-radius: {RADIUS["md"]} !important;
     font-size: 13px !important;
 }}
 
 /* 默认 warning — 改为琥珀左侧条 */
 div[data-testid="stAlert"][kind="warning"] {{
     background: {COLORS.warning_soft} !important;
-    border-left: 3px solid {COLORS.warning} !important;
+    border: 1px solid {COLORS.accent_border} !important;
     color: {COLORS.text} !important;
-    border-radius: {RADIUS["sm"]} !important;
+    border-radius: {RADIUS["md"]} !important;
     font-size: 13px !important;
 }}
 
 /* 默认 error — 改为红色左侧条 */
 div[data-testid="stAlert"][kind="error"] {{
     background: {COLORS.error_soft} !important;
-    border-left: 3px solid {COLORS.error} !important;
+    border: 1px solid {COLORS.error_light} !important;
     color: {COLORS.error_text} !important;
-    border-radius: {RADIUS["sm"]} !important;
+    border-radius: {RADIUS["md"]} !important;
     font-size: 13px !important;
 }}
 
 /* 默认 success — 改为绿色左侧条 */
 div[data-testid="stAlert"][kind="success"] {{
     background: {COLORS.success_soft} !important;
-    border-left: 3px solid {COLORS.success} !important;
+    border: 1px solid rgba(47,111,85,0.25) !important;
     color: {COLORS.text} !important;
-    border-radius: {RADIUS["sm"]} !important;
+    border-radius: {RADIUS["md"]} !important;
     font-size: 13px !important;
 }}
 
@@ -407,8 +423,35 @@ div[data-testid="stAlert"][kind="success"] {{
    ============================================================ */
 
 .section-divider {{
-    margin: 20px 0;
+    margin: 24px 0;
     border-top: 1px solid {COLORS.divider};
+}}
+
+/* Dataframe polish */
+[data-testid="stDataFrame"] {{
+    border: 1px solid {COLORS.border} !important;
+    border-radius: {RADIUS["md"]} !important;
+    overflow: hidden !important;
+    box-shadow: {SHADOWS["card"]};
+}}
+
+/* Report/document preview helpers used by tabs and generated HTML wrappers */
+.report-sheet {{
+    background: #FFFFFF;
+    border: 1px solid {COLORS.border};
+    border-radius: {RADIUS["md"]};
+    box-shadow: {SHADOWS["document"]};
+    padding: 32px;
+    max-width: 860px;
+    margin: 0 auto 24px;
+}}
+
+.workspace-band {{
+    background: {COLORS.surface_raised};
+    border: 1px solid {COLORS.border};
+    border-radius: {RADIUS["lg"]};
+    padding: 18px;
+    box-shadow: {SHADOWS["card"]};
 }}
 
 /* ============================================================

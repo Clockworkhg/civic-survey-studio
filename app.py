@@ -50,7 +50,7 @@ from src.ui.tabs import (
     render_tab_ai_analysis,
 )
 from src.ui.tabs.tab_ai_analysis import apply_pending_blueprint_to_widget_state
-from src.ui.theme import COLORS
+from src.ui.theme import COLORS, APP_NAME, APP_NAME_ZH, APP_VERSION
 
 
 # ================================================================
@@ -102,42 +102,32 @@ _using_example = st.session_state.get("_use_example_data", False)
 
 # ── 无数据：引导页 ──
 if sb["generic_file"] is None and not _using_example:
-    _landing_hero = getattr(ui_messages, "get_landing_hero", None)
-    _landing_cards = getattr(ui_messages, "get_landing_cards", None)
+    st.markdown(ui_messages.get_landing_hero(), unsafe_allow_html=True)
 
-    if _landing_hero and _landing_cards:
-        st.markdown(_landing_hero(), unsafe_allow_html=True)
-
-        # Single CTA row: quickstart toggle + text hint
-        _cq1, _cq2 = st.columns([1.5, 3])
-        with _cq1:
-            if st.button("查看快速开始", key="hero_toggle_quickstart",
-                         help="在当前页面展开 5 步快速开始指南"):
-                st.session_state["show_quickstart"] = (
-                    not st.session_state.get("show_quickstart", False)
-                )
-                st.rerun()
-        with _cq2:
-            st.markdown(
-                f'<div style="font-size:12px;color:{COLORS.text_muted};'
-                f'padding-top:5px;line-height:1.5;">'
-                f'开始使用：在左侧 <b>数据源</b> 上传问卷数据，'
-                f'或点击「加载内置示例数据」体验完整流程。</div>',
-                unsafe_allow_html=True,
+    # Single CTA row: quickstart toggle + text hint
+    _cq1, _cq2 = st.columns([1.5, 3])
+    with _cq1:
+        if st.button("查看快速开始", key="hero_toggle_quickstart",
+                     help="在当前页面展开 5 步快速开始指南"):
+            st.session_state["show_quickstart"] = (
+                not st.session_state.get("show_quickstart", False)
             )
+            st.rerun()
+    with _cq2:
+        st.markdown(
+            f'<div style="font-size:12px;color:{COLORS.text_muted};'
+            f'padding-top:5px;line-height:1.5;">'
+            f'开始使用：在左侧 <b>数据源</b> 上传问卷数据，'
+            f'或点击「加载内置示例数据」体验完整流程。</div>',
+            unsafe_allow_html=True,
+        )
 
-        # Inline quickstart (togglable)
-        if st.session_state.get("show_quickstart", False):
-            _qs = getattr(ui_messages, "get_quickstart_guide", None)
-            if _qs:
-                st.markdown(_qs(), unsafe_allow_html=True)
+    # Inline quickstart (togglable)
+    if st.session_state.get("show_quickstart", False):
+        st.markdown(ui_messages.get_quickstart_guide(), unsafe_allow_html=True)
 
-        # Cards
-        st.markdown(_landing_cards(), unsafe_allow_html=True)
-    else:
-        # Fallback: basic landing page when landing functions are unavailable
-        st.title("CivicSurvey Studio")
-        st.caption("问策 Insight｜AI 辅助问卷统计分析与报告生成工作台")
+    # Cards
+    st.markdown(ui_messages.get_landing_cards(), unsafe_allow_html=True)
     st.stop()
 
 
@@ -657,4 +647,4 @@ with gt5:
 # 页脚
 # ================================================================
 st.markdown("---")
-st.caption("政务数据分析工作台  v0.1.0")
+st.caption(f"{APP_NAME}（{APP_NAME_ZH}） v{APP_VERSION}")

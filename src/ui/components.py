@@ -370,7 +370,7 @@ def render_metric_card(
     vcolor = status_colors.get(status, COLORS.primary)
 
     parts = [
-        f'<div style="{_card_css(CARD_STYLE)}min-width:100px;">',
+        f'<div style="{_card_css(CARD_STYLE)}min-width:100px;text-align:center;">',
         f'<div style="font-size:11px;color:{COLORS.text_muted};margin-bottom:4px;'
         f'text-transform:uppercase;letter-spacing:0.5px;">{_html_safe(label)}</div>',
         f'<div style="font-size:26px;line-height:32px;font-weight:700;color:{vcolor};'

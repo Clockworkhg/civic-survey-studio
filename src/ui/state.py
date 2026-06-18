@@ -57,7 +57,10 @@ def init_session_state() -> None:
     # ── 4. 当前 AI 模型（优先后保存的设置）──
     _set_default("_ai_model", st.session_state.get("_saved_model", ""))
 
-    # ── 5. v0.1.0: 下游有效性追踪 ──
+    # ── 5. Landing page state ──
+    _set_default("show_quickstart", False)
+
+    # ── 6. v0.1.0: 下游有效性追踪 ──
     _set_default("_downstream_valid", True)
     _set_default("_invalidation_reason", "")
     _set_default("_config_source", "")

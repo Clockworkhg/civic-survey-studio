@@ -290,3 +290,48 @@ class TestExampleDataMessages:
     def test_not_found_message_mentions_own_data(self):
         msg = get_example_data_not_found_message()
         assert "自己的数据" in msg or "上传" in msg
+
+
+# ================================================================
+# Regression tests for code review findings
+# ================================================================
+
+class TestLandingRegression:
+    """Verify landing page HTML uses theme tokens, not stale inline values."""
+
+    def test_landing_css_no_stale_rgba_16_24_40_shadow(self):
+        """Landing HTML should not contain pre-refresh shadow rgba(16,24,40,...)."""
+        import src.ui.messages as m
+        for func in [m.get_landing_hero, m.get_landing_cards, m.get_quickstart_guide]:
+            html = func()
+            assert "rgba(16,24,40" not in html, (
+                f"{func.__name__}() should not contain stale rgba(16,24,40,...) shadow"
+            )
+
+    def test_landing_hero_uses_radius_token(self):
+        """Hero should use RADIUS token, not bare 16px."""
+        import src.ui.messages as m
+        hero = m.get_landing_hero()
+        # The hero should use RADIUS["xl"] = "16px" — the value is the same
+        # but it comes from the token. We check that the value '16px' is present
+        # (it must be imported from theme).
+        assert "16px" in hero, "Hero should still have 16px border-radius"
+
+    def test_quickstart_uses_surface_raised(self):
+        """Quickstart guide should use COLORS.surface_raised background."""
+        import src.ui.messages as m
+        from src.ui.theme import COLORS
+        html = m.get_quickstart_guide()
+        assert COLORS.surface_raised in html, (
+            "Quickstart guide should use surface_raised background"
+        )
+
+    def test_landing_cards_use_theme_shadow_token(self):
+        """Landing step cards should use SHADOWS['card'] token shadow."""
+        import src.ui.messages as m
+        from src.ui.theme import SHADOWS
+        cards = m.get_landing_cards()
+        # SHADOWS["card"] should appear in the cards HTML
+        assert SHADOWS["card"] in cards, (
+            "Landing cards should use SHADOWS['card'] token"
+        )

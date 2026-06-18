@@ -195,7 +195,13 @@ section[data-testid="stSidebar"] .stNumberInput label {{
 }}
 
 .stTabs [data-baseweb="tab-highlight"] {{
-    display: none !important;
+    background: transparent !important;
+}}
+
+/* Tab 键盘焦点指示器 */
+.stTabs [role="tab"]:focus-visible {{
+    outline: 2px solid {COLORS.primary} !important;
+    outline-offset: 2px;
 }}
 
 /* ============================================================
@@ -380,10 +386,17 @@ section[data-testid="stSidebar"] .stNumberInput label {{
 
 /* ============================================================
    Callout 弱化（info/warning/error/success）
+   Streamlit 1.58 DOM: [data-testid="stAlert"] (transparent)
+     +-- [data-testid="stAlertContainer"] (bg/color/radius)
+         +-- [data-testid="stAlertContent{{Type}}"]
+   背景/边框/颜色设置在 stAlertContainer 上；
+   通过父元素 :has(stAlertContentType) 区分 Alert 类型。
    ============================================================ */
 
 /* 默认 info — 改为温和灰蓝 */
-div[data-testid="stAlert"][kind="info"] {{
+div[data-testid="stAlert"]:has(
+    [data-testid="stAlertContentInfo"]
+) [data-testid="stAlertContainer"] {{
     background: {COLORS.info_soft} !important;
     border: 1px solid {COLORS.primary_line} !important;
     color: {COLORS.text} !important;
@@ -392,16 +405,20 @@ div[data-testid="stAlert"][kind="info"] {{
 }}
 
 /* 默认 warning — 改为琥珀左侧条 */
-div[data-testid="stAlert"][kind="warning"] {{
+div[data-testid="stAlert"]:has(
+    [data-testid="stAlertContentWarning"]
+) [data-testid="stAlertContainer"] {{
     background: {COLORS.warning_soft} !important;
-    border: 1px solid {COLORS.accent_border} !important;
+    border: 1px solid {COLORS.warning_border} !important;
     color: {COLORS.text} !important;
     border-radius: {RADIUS["md"]} !important;
     font-size: 13px !important;
 }}
 
 /* 默认 error — 改为红色左侧条 */
-div[data-testid="stAlert"][kind="error"] {{
+div[data-testid="stAlert"]:has(
+    [data-testid="stAlertContentError"]
+) [data-testid="stAlertContainer"] {{
     background: {COLORS.error_soft} !important;
     border: 1px solid {COLORS.error_light} !important;
     color: {COLORS.error_text} !important;
@@ -410,9 +427,11 @@ div[data-testid="stAlert"][kind="error"] {{
 }}
 
 /* 默认 success — 改为绿色左侧条 */
-div[data-testid="stAlert"][kind="success"] {{
+div[data-testid="stAlert"]:has(
+    [data-testid="stAlertContentSuccess"]
+) [data-testid="stAlertContainer"] {{
     background: {COLORS.success_soft} !important;
-    border: 1px solid rgba(47,111,85,0.25) !important;
+    border: 1px solid {COLORS.success_border} !important;
     color: {COLORS.text} !important;
     border-radius: {RADIUS["md"]} !important;
     font-size: 13px !important;
@@ -431,13 +450,12 @@ div[data-testid="stAlert"][kind="success"] {{
 [data-testid="stDataFrame"] {{
     border: 1px solid {COLORS.border} !important;
     border-radius: {RADIUS["md"]} !important;
-    overflow: hidden !important;
     box-shadow: {SHADOWS["card"]};
 }}
 
 /* Report/document preview helpers used by tabs and generated HTML wrappers */
 .report-sheet {{
-    background: #FFFFFF;
+    background: {COLORS.surface};
     border: 1px solid {COLORS.border};
     border-radius: {RADIUS["md"]};
     box-shadow: {SHADOWS["document"]};

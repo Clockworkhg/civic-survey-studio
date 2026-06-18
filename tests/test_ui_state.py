@@ -147,3 +147,10 @@ class TestInitSessionState:
         # Should preserve user changes
         assert mock_st["generic_config"]["report_title"] == "自定义标题"
         assert mock_st["_ai_model"] == "user-selected-model"
+
+    def test_show_quickstart_initialized(self, mock_st):
+        """show_quickstart should be initialized to False."""
+        from src.ui.state import init_session_state
+        init_session_state()
+        assert "show_quickstart" in mock_st, "show_quickstart should be initialized"
+        assert mock_st["show_quickstart"] is False, "show_quickstart default should be False"

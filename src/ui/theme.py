@@ -49,9 +49,11 @@ COLORS = _ColorGroup(
     # ── 语义色 ──
     success="#2F6F55",
     success_soft="#E8F3ED",
+    success_border="rgba(47,111,85,0.25)",
 
     warning="#B7791F",
     warning_soft="#FFF7E5",
+    warning_border="#D4A854",
 
     error="#B42318",
     error_soft="#FFF1ED",
@@ -120,6 +122,7 @@ RADIUS = {
     "sm":   "6px",
     "md":   "8px",
     "lg":   "12px",
+    "xl":   "16px",
     "pill": "999px",
 }
 
@@ -214,3 +217,16 @@ PIPELINE_STATUS_BG = {
     "warning":  COLORS.warning_soft,
     "blocked":  COLORS.error_soft,
 }
+
+
+# ================================================================
+# 应用元数据
+# ================================================================
+
+APP_NAME = "CivicSurvey Studio"
+APP_NAME_ZH = "问策 Insight"
+
+try:
+    from src import __version__ as APP_VERSION
+except ImportError:
+    APP_VERSION = "0.1.0"

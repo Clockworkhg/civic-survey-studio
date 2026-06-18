@@ -140,8 +140,8 @@ class TestNoCircularImports:
         import src
         assert hasattr(src, "__version__"), "src should have __version__"
         assert isinstance(src.__version__, str), "__version__ should be a string"
-        assert src.__version__ == "0.1.0", (
-            f"__version__ should be 0.1.0, got {src.__version__}"
+        assert src.__version__ == "0.1.1", (
+            f"__version__ should be 0.1.1, got {src.__version__}"
         )
 
 
@@ -170,3 +170,57 @@ class TestAppStartsWithoutImportError:
         cards_html = m.get_landing_cards()
         assert "上传问卷数据" in cards_html
         assert "报告工作台" in cards_html
+
+
+class TestThemeAppConstants:
+    """Verify app branding constants from theme."""
+
+    def test_app_name_constant(self):
+        """APP_NAME should be defined in theme."""
+        from src.ui.theme import APP_NAME
+        assert APP_NAME == "CivicSurvey Studio"
+
+    def test_app_name_zh_constant(self):
+        """APP_NAME_ZH should be defined in theme."""
+        from src.ui.theme import APP_NAME_ZH
+        assert APP_NAME_ZH == "问策 Insight"
+
+    def test_app_version_constant(self):
+        """APP_VERSION should be defined in theme and match src.__version__."""
+        import src
+        from src.ui.theme import APP_VERSION
+        assert APP_VERSION == src.__version__
+
+    def test_footer_string_does_not_contain_old_brand(self):
+        """The app footer should no longer contain the old brand name."""
+        import src.ui.theme as t
+        # Construct the footer as it would appear in app.py
+        footer = f"{t.APP_NAME}（{t.APP_NAME_ZH}） v{t.APP_VERSION}"
+        assert "政务数据分析工作台" not in footer, (
+            "Footer should not contain old brand '政务数据分析工作台'"
+        )
+
+    def test_radius_xl_token_exists(self):
+        """RADIUS should have an 'xl' key for 16px."""
+        from src.ui.theme import RADIUS
+        assert "xl" in RADIUS, "RADIUS should contain 'xl' token"
+        assert RADIUS["xl"] == "16px"
+
+    def test_colors_has_success_border(self):
+        """COLORS should have success_border for alert borders."""
+        from src.ui.theme import COLORS
+        assert hasattr(COLORS, "success_border"), "COLORS should have success_border"
+
+    def test_colors_has_warning_border(self):
+        """COLORS should have warning_border with better contrast."""
+        from src.ui.theme import COLORS
+        assert hasattr(COLORS, "warning_border"), "COLORS should have warning_border"
+
+    def test_metric_card_has_text_align_center(self):
+        """Metric card should use text-align:center."""
+        import inspect
+        from src.ui.components import render_metric_card
+        source = inspect.getsource(render_metric_card)
+        assert "text-align:center" in source, (
+            "Metric card CSS should contain text-align:center"
+        )

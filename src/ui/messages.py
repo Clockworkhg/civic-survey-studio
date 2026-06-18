@@ -14,6 +14,7 @@ from typing import List
 from src.ui.theme import (
     COLORS,
     RADIUS,
+    SHADOWS,
     SPACING,
     CARD_STYLE,
     PIPELINE_STATUS_BG,
@@ -411,7 +412,7 @@ def _landing_shared_constants():
     card_css = (
         f"background:{C.surface_raised};border:1px solid {C.border};"
         f"border-radius:{R['lg']};padding:20px;"
-        f"box-shadow:0 1px 2px rgba(23,33,43,0.04);"
+        f"box-shadow:{SHADOWS['card']};"
     )
     steps = [
         ("数据与变量", "上传数据、预览与变量管理"),
@@ -450,8 +451,8 @@ def get_landing_hero() -> str:
     return (
         f'<div style="position:relative;overflow:hidden;'
         f'background:{C.surface_raised};border:1px solid {C.border};'
-        f'border-radius:16px;padding:30px 30px 24px;'
-        f'box-shadow:0 18px 44px rgba(23,33,43,0.08);'
+        f'border-radius:{R["xl"]};padding:30px 30px 24px;'
+        f'box-shadow:{SHADOWS["document"]};'
         f'margin-bottom:14px;">'
         f'<div style="position:absolute;left:0;right:0;top:0;height:4px;'
         f'background:{C.primary};opacity:0.9;"></div>'
@@ -539,7 +540,7 @@ def get_landing_cards() -> str:
             f'<div style="flex:1;min-width:110px;background:{C.surface_raised};'
             f'border:1px solid {C.border};border-radius:{R["md"]};'
             f'padding:12px 8px;text-align:center;'
-            f'box-shadow:0 1px 2px rgba(16,24,40,0.04);">'
+            f'box-shadow:{SHADOWS["card"]};">'
             f'<div style="width:22px;height:22px;border-radius:50%;'
             f'background:{pending_bg};margin:0 auto 6px;'
             f'line-height:22px;font-size:10px;font-weight:600;'
@@ -583,9 +584,9 @@ def get_quickstart_guide() -> str:
     C = COLORS
     R = RADIUS
     card_css = (
-        f"background:{C.surface};border:1px solid {C.border};"
+        f"background:{C.surface_raised};border:1px solid {C.border};"
         f"border-radius:{R['md']};padding:18px 20px;"
-        f"box-shadow:0 1px 3px rgba(16,24,40,0.06);"
+        f"box-shadow:{SHADOWS['card']};"
     )
     steps = [
         ("1. 上传数据",

@@ -74,14 +74,14 @@ class TestVersionConsistency:
             f"VERSION ({file_version}) != src.__version__ ({src.__version__})"
         )
 
-    def test_version_is_0_1_0(self):
-        """Both should be 0.1.0 for this release."""
+    def test_version_is_0_1_1(self):
+        """Both should be 0.1.1 for this release."""
         vf = os.path.join(ROOT, "VERSION")
         with open(vf, encoding="utf-8") as f:
             file_version = f.read().strip()
 
         import src
-        assert file_version == "0.1.0", f"VERSION should be 0.1.0, got {file_version}"
-        assert src.__version__ == "0.1.0", (
-            f"src.__version__ should be 0.1.0, got {src.__version__}"
+        assert file_version == "0.1.1", f"VERSION should be 0.1.1, got {file_version}"
+        assert src.__version__ == "0.1.1", (
+            f"src.__version__ should be 0.1.1, got {src.__version__}"
         )
